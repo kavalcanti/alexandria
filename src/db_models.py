@@ -20,6 +20,7 @@ import os
 
 load_dotenv()
 
+
 db_user = os.getenv('DB_USER')
 db_host = os.getenv('DB_HOST')
 db_pass = os.getenv('DB_PASS')
