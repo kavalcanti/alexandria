@@ -7,8 +7,7 @@ from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.patch_stdout import patch_stdout
-from prompt_toolkit.keys import Keys
-
+import time
 
 lorem = """
 
@@ -32,29 +31,44 @@ Section 1.10.33 of "de Finibus Bonorum et Malorum", written by Cicero in 45 BC
 
 
 
-chat_buffer = Buffer(read_only=True)
+chat_buffer = Buffer()
 msg_buffer = Buffer()
 chats_buffer = Buffer()
 
-chat_content = Window(BufferControl(buffer=chat_buffer),wrap_lines=True)
-chat_window = ScrollablePane(content=chat_content)
+chat_content = Window(BufferControl(buffer=chat_buffer),wrap_lines=True,)
+chat_window = ScrollablePane(content=chat_content, keep_cursor_visible=True, keep_focused_window_visible=True)
 
 msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
 chats_window = Window(BufferControl(buffer=chats_buffer), width=20)
 
 kb = KeyBindings()
 
+
+helpbar_text =  [
+        ("class:title", " Ctrl-Q: exit. Ctrl-Space: Send message. "),
+        # ("class:title", " (Press [Ctrl-Q] to quit, [Ctrl+A] to send msg.)"),
+    ]
+
+titlebar_text = [
+        ("class:title", " Hello world "),
+        ("class:title", " (Press [Ctrl-Q] to quit, [Ctrl+A] to send msg.)"),
+    ]
+
+# Chat, msg, sperators and helpbar container
 body_a = HSplit(
     [
         chat_window,
 
+
         Window(height=1, char="-", style="class:line"),
 
-        msg_window
+        msg_window,
+        Window(height=1, char="-", style="class:line"),
+        Window(height=1, content=FormattedTextControl(helpbar_text)),
     ]
 )
 
-
+# Future conversation logs container
 body_b = VSplit(
     [
         body_a,
@@ -63,20 +77,13 @@ body_b = VSplit(
     ]
 )
 
-
-def get_titlebar_text():
-    return [
-        ("class:title", " Hello world "),
-        ("class:title", " (Press [Ctrl-Q] to quit, [Ctrl+A] to send msg.)"),
-    ]
-
-
+# Main app container
 root_container = HSplit(
     [
-        # The titlebar.
+
         Window(
             height=1,
-            content=FormattedTextControl(get_titlebar_text),
+            content=FormattedTextControl(titlebar_text),
             align=WindowAlign.CENTER,
         ),
 
@@ -90,10 +97,7 @@ root_container = HSplit(
 application = Application(
     layout=Layout(root_container, focused_element=msg_window),
     key_bindings=kb,
-    # Let's add mouse support!
     mouse_support=True,
-    # Using an alternate screen buffer means as much as: "run full screen".
-    # It switches the terminal to an alternate screen.
     full_screen=True,
 )
 
@@ -139,7 +143,6 @@ def _(event):
     },
     {
         "role": "user",
-
         "content": user_input,
     },
 ]
@@ -154,12 +157,19 @@ def _(event):
         # TODO: Process user_input (send to LLM)
         # TODO: Append user message to chat_buffer
         # TODO: Get LLM response and append to chat_buffer
-        chat_buffer.insert_text(f"You: {user_input}\n",byp)
-        # Simulate LLM response (replace with actual LLM call)
-
+        chat_buffer.insert_text(f"You: {user_input}\n")
 
         # chat_buffer.insert_text(f"LLM: {response[0].outputs[0].text}")
-        chat_buffer.insert_text(f"LLM: {lorem}")
+        
+        chat_buffer.insert_text(f"LLM: {lorem}\n")
+
+        get_app().layout.focus(chat_window)
+        get_app().invalidate()
+        get_app().layout.focus(msg_window)
+        # chat_buffer.cursor_position = len(chat_buffer.text)
+
+        # chat_buffer.insert_text(f"DEBUG: {len(chat_buffer.text)}")
+
     else:
         # Optionally, handle empty input (e.g., do nothing or show a message)
         pass

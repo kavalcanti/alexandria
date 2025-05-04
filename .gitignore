@@ -8,6 +8,9 @@ wheels/
 
 # Virtual environments
 .venv
+.conda
 .env
-ai_models
-datasets
+
+# Large files
+ai_models/*
+datasets/*
