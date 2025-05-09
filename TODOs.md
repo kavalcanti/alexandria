@@ -18,6 +18,8 @@ enables point below
 ### Edit chat buffer -> history
 feeds into buffer -> prompt loop
 
+### Focus end of buffer
+
 # Feat
 
 ## UI

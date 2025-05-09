@@ -1,54 +1,97 @@
-# from llm_models import load_local_llm
-
-# tokenizer, model = load_local_llm()
-
-
-# def generate_response(message, history=[], ):
+import os
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
-#     # prepare the model input
-#     prompt = message
-#     messages = [
-#         {"role": "user", "content": prompt}
+llm_name = "Qwen/Qwen3-1.7B"
 
-#     ]
-#     text = tokenizer.apply_chat_template(
-#         messages,
-#         tokenize=False,
-#         add_generation_prompt=True,
-#         enable_thinking=True # Switches between thinking and non-thinking modes. Default is True.
-#     )
+class ConversationHandler:
+    def __init__(self, llm_name, context_window_len=5):
 
-#     print(text)
-
-#     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
-
-#     # conduct text completion
-#     generated_ids = model.generate(
-#         **model_inputs,
-#         max_new_tokens=32768
-#     )
-#     output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
-
-#     # parsing thinking content
-#     try:
-#         # rindex finding 151668 (</think>)
-#         index = len(output_ids) - output_ids[::-1].index(151668)
-#     except ValueError:
-#         index = 0
-
-#     thinking_content = tokenizer.decode(output_ids[:index], skip_special_tokens=True).strip("\n")
-#     content = tokenizer.decode(output_ids[index:], skip_special_tokens=True).strip("\n")
-
-#     return thinking_content, content
+        if not llm_name:
+            self.llm_name = "Qwen/Qwen3-1.7B"
+        else:
+            self.llm_name = llm_name
+        
+        self.context_window_len = context_window_len
+        self.local_llm_dir = f"ai_models/{llm_name}"
+        self.tokenizer, self.model = self._load_local_llm(self.llm_name)
+        print(self.tokenizer)
+        self.context_window = []
 
 
-# prompt = 'Provide a brief overview of AWK.'
+    def _load_local_llm(self, llm_name=False):
 
-# thinking_content, content = generate_response(prompt)
+        if not os.path.exists(self.local_llm_dir):
+            os.makedirs(self.local_llm_dir)
 
-# print("thinking content:", thinking_content)
-# print("content:", content)
+            tokenizer = AutoTokenizer.from_pretrained(self.llm_name)
+            model = AutoModelForCausalLM.from_pretrained(self.llm_name, torch_dtype="auto", device_map="auto")
 
-# model = None
-# tokenizer = None
+            model.save_pretrained(self.local_llm_dir)
+            tokenizer.save_pretrained(self.local_llm_dir)
+
+            tokenizer = None
+            model = None
+
+        tokenizer = AutoTokenizer.from_pretrained(self.local_llm_dir)
+        model = AutoModelForCausalLM.from_pretrained(self.local_llm_dir, torch_dtype="auto", device_map="auto")
+
+        return tokenizer, model
+
+
+    def _parse_llm_response(self, llm_output):
+
+        try:
+            # Find 151668 (</think>) token
+            index = len(llm_output) - llm_output[::-1].index(151668)
+        except ValueError:
+            index = 0
+
+        thinking_content = self.tokenizer.decode(llm_output[:index], skip_special_tokens=True).strip("\n")
+        content = self.tokenizer.decode(llm_output[index:], skip_special_tokens=True).strip("\n")
+
+        return thinking_content, content
+
+
+    def generate_chat_response(self, thinking_model = True, max_new_tokens=8096):
+
+        text = self.tokenizer.apply_chat_template(
+            self.context_window,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=thinking_model
+        )
+
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+
+        generated_ids = self.model.generate(
+            **model_inputs,
+            max_new_tokens=max_new_tokens
+        )
+
+        llm_output = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
+
+        llm_thinking, llm_answer = self._parse_llm_response(llm_output)
+
+        return llm_thinking, llm_answer
+
+
+    def manage_context_window(self, role, message):
+
+        formatter = {
+            "role":role,
+            "content":message 
+        }
+
+        system_prompt = self.context_window[0] if self.context_window and self.context_window[0]["role"] == "system" else None
+
+        if system_prompt and len(self.context_window) >= self.context_window_len:
+            self.context_window.pop(2)
+            self.context_window.append(formatter)
+        elif len(self.context_window) >= self.context_window_len:
+            self.context_window.pop(1)
+            self.context_window.append(formatter)
+        else:
+            self.context_window.append(formatter)
+
+        return None

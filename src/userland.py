@@ -1,3 +1,4 @@
+import asyncio
 from prompt_toolkit.application import Application, get_app
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit import PromptSession
@@ -7,42 +8,25 @@ from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.patch_stdout import patch_stdout
+from src.model_calls import ConversationHandler
 import time
 
-lorem = """
+llm_model = "Qwen/Qwen3-1.7B"
 
-The standard Lorem Ipsum passage, used since the 1500s
+handler = ConversationHandler(llm_model)
 
-"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-Section 1.10.32 of "de Finibus Bonorum et Malorum", written by Cicero in 45 BC
-
-"Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?"
-1914 translation by H. Rackham
-
-"But I must explain to you how all this mistaken idea of denouncing pleasure and praising pain was born and I will give you a complete account of the system, and expound the actual teachings of the great explorer of the truth, the master-builder of human happiness. No one rejects, dislikes, or avoids pleasure itself, because it is pleasure, but because those who do not know how to pursue pleasure rationally encounter consequences that are extremely painful. Nor again is there anyone who loves or pursues or desires to obtain pain of itself, because it is pain, but because occasionally circumstances occur in which toil and pain can procure him some great pleasure. To take a trivial example, which of us ever undertakes laborious physical exercise, except to obtain some advantage from it? But who has any right to find fault with a man who chooses to enjoy a pleasure that has no annoying consequences, or one who avoids a pain that produces no resultant pleasure?"
-Section 1.10.33 of "de Finibus Bonorum et Malorum", written by Cicero in 45 BC
-
-"At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus. Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat."
-1914 translation by H. Rackham
-
-"On the other hand, we denounce with righteous indignation and dislike men who are so beguiled and demoralized by the charms of pleasure of the moment, so blinded by desire, that they cannot foresee the pain and trouble that are bound to ensue; and equal blame belongs to those who fail in their duty through weakness of will, which is the same as saying through shrinking from toil and pain. These cases are perfectly simple and easy to distinguish. In a free hour, when our power of choice is untrammelled and when nothing prevents our being able to do what we like best, every pleasure is to be welcomed and every pain avoided. But in certain circumstances and owing to the claims of duty or the obligations of business it will frequently occur that pleasures have to be repudiated and annoyances accepted. The wise man therefore always holds in these matters to this principle of selection: he rejects pleasures to secure other greater pleasures, or else he endures pains to avoid worse pains."
-
-"""
-
-
-
-chat_buffer = Buffer()
 msg_buffer = Buffer()
-chats_buffer = Buffer()
+msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
 
-chat_content = Window(BufferControl(buffer=chat_buffer),wrap_lines=True,)
+chat_formatted_text = FormattedTextControl()
+chat_content = Window(chat_formatted_text, wrap_lines=True)
 chat_window = ScrollablePane(content=chat_content, keep_cursor_visible=True, keep_focused_window_visible=True)
 
-msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
-chats_window = Window(BufferControl(buffer=chats_buffer), width=20)
+thinking_formatted_text = FormattedTextControl()
+thinking_content = Window(thinking_formatted_text, wrap_lines=True)
+thinking_window = ScrollablePane(content=thinking_content)
 
 kb = KeyBindings()
-
 
 helpbar_text =  [
         ("class:title", " Ctrl-Q: exit. Ctrl-Space: Send message. "),
@@ -73,7 +57,7 @@ body_b = VSplit(
     [
         body_a,
         Window(width=1, char="#", style="class:line"),
-        chats_window
+        thinking_window
     ]
 )
 
@@ -93,7 +77,6 @@ root_container = HSplit(
     ]
 )
 
-
 application = Application(
     layout=Layout(root_container, focused_element=msg_window),
     key_bindings=kb,
@@ -101,10 +84,62 @@ application = Application(
     full_screen=True,
 )
 
-# from src.vllm_model_calls import llm
-# from vllm.sampling_params import SamplingParams
-# sampling_params = SamplingParams(max_tokens=8192, temperature=0.0)
 
+### --- Utility Keybinds --- ###
+
+
+# @kb.add('c-up')
+# def _(event):
+#     """Scroll chat window up by one line, respecting bounds."""
+#     pane = chat_window # Access the ScrollablePane
+#     # Ensure render_info is available before accessing sizes
+#     if pane.render_info and pane.content.render_info:
+#         # Get rendered heights of the pane and its content
+#         window_height = pane.render_info.window_height
+#         content_height = pane.content.render_info.content_height
+#         # Calculate maximum scroll offset (0 if content fits within the window)
+#         max_scroll = max(0, content_height - window_height)
+
+#         # Decrease scroll by one line
+#         new_scroll = pane.vertical_scroll - 1
+#         # Ensure the new scroll value is within the valid range [0, max_scroll]
+#         pane.vertical_scroll = max(0, min(max_scroll, new_scroll))
+
+#     event.app.invalidate() # Redraw the UI
+
+# @kb.add('c-down')
+# def _(event):
+#     """Scroll chat window down by one line, respecting bounds."""
+#     pane = chat_window # Access the ScrollablePane
+#     # Ensure render_info is available before accessing sizes
+#     if pane.render_info and pane.content.render_info:
+#         # Get rendered heights of the pane and its content
+#         window_height = pane.render_info.window_height
+#         content_height = pane.content.render_info.content_height
+#         # Calculate maximum scroll offset (0 if content fits within the window)
+#         max_scroll = max(0, content_height - window_height)
+
+#         # Increase scroll by one line
+#         new_scroll = pane.vertical_scroll + 1
+#          # Ensure the new scroll value is within the valid range [0, max_scroll]
+#         pane.vertical_scroll = max(0, min(max_scroll, new_scroll))
+
+#     event.app.invalidate() # Redraw the UI
+
+
+@kb.add('c-up')
+def _(event):
+    """Scroll chat window up by one line."""
+    # Decrease the vertical scroll offset, ensuring it doesn't go below 0
+    chat_window.vertical_scroll = max(0, chat_window.vertical_scroll - 1)
+    event.app.invalidate() # Redraw the UI
+
+@kb.add('c-down')
+def _(event):
+    """Scroll chat window down by one line."""
+    # Increase the vertical scroll offset
+    chat_window.vertical_scroll += 1
+    event.app.invalidate() # Redraw the UI
 
 @kb.add('c-m' ,eager=True)
 def _(event):
@@ -112,7 +147,7 @@ def _(event):
 
 @kb.add('c-n',eager=True)
 def _(event):
-    event.app.layout.focus(chat_window)
+    event.app.layout.focus(chat_content)
 
 @kb.add("c-q", eager=True)
 def _(event):
@@ -121,57 +156,41 @@ def _(event):
     """
     event.app.exit()
 
+### --- Main chat send loop --- ###
+
 @kb.add('c-space', eager=True)
-def _(event):
+async def _(event):
     """
     Handle Control+Enter key press to send input.
     """
     user_input = msg_buffer.text
 
-    conversation = [
-    {
-        "role": "system",
-        "content": "You are a helpful assistant"
-    },
-    {
-        "role": "user",
-        "content": "Hello"
-    },
-    {
-        "role": "assistant",
-        "content": "Hello! How can I assist you today?"
-    },
-    {
-        "role": "user",
-        "content": user_input,
-    },
-]
+    if user_input.strip(): 
 
+        msg_buffer.text = "AI is busy." 
 
-    if user_input.strip(): # Only send if input is not empty
-        msg_buffer.text = "AI is busy." # Clear input field
-
-        # response = llm.chat(conversation, sampling_params=sampling_params)
-        
-        msg_buffer.text = "" # Clear input field
-        # TODO: Process user_input (send to LLM)
-        # TODO: Append user message to chat_buffer
-        # TODO: Get LLM response and append to chat_buffer
-        chat_buffer.insert_text(f"You: {user_input}\n")
-
-        # chat_buffer.insert_text(f"LLM: {response[0].outputs[0].text}")
-        
-        chat_buffer.insert_text(f"LLM: {lorem}\n")
-
-        get_app().layout.focus(chat_window)
+        current_chat_text = chat_formatted_text.text
+        chat_formatted_text.text = current_chat_text + f"You: {user_input}\n"
         get_app().invalidate()
-        get_app().layout.focus(msg_window)
-        # chat_buffer.cursor_position = len(chat_buffer.text)
 
-        # chat_buffer.insert_text(f"DEBUG: {len(chat_buffer.text)}")
+        handler.manage_context_window("user", user_input)
+
+        ai_thinking, ai_answer = await asyncio.to_thread(handler.generate_chat_response)
+        
+        current_chat_text = chat_formatted_text.text
+        chat_formatted_text.text = current_chat_text + f"LLM: {ai_answer}\n"
+
+        current_thinking_text = thinking_formatted_text.text
+        thinking_formatted_text.text = current_thinking_text + f"Thoughts: {ai_thinking}\n"
+
+        get_app().invalidate()
+
+        handler.manage_context_window("assistant", ai_answer)
+
+        msg_buffer.text = ""
 
     else:
-        # Optionally, handle empty input (e.g., do nothing or show a message)
+
         pass
 
 

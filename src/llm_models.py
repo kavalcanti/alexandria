@@ -1,30 +1,44 @@
-# import os
-# from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# llm_name = "Qwen/Qwen3-1.7B"
-# local_llm_dir = f"ai_models/{llm_name}"
+model_name = "Qwen/Qwen3-1.7B"
 
-# def load_local_llm(llm_name=False):
+# load the tokenizer and the model
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    torch_dtype="auto",
+    device_map="auto"
+)
 
-#     if not llm_name:
-#         llm_name = "Qwen/Qwen3-1.7B"
+# prepare the model input
+prompt = "Give me a short introduction to large language model."
+messages = [
+    {"role": "user", "content": prompt}
+]
+text = tokenizer.apply_chat_template(
+    messages,
+    tokenize=False,
+    add_generation_prompt=True,
+    enable_thinking=True # Switches between thinking and non-thinking modes. Default is True.
+)
+model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
 
-#     local_llm_dir = f"ai_models/{llm_name}"
+# conduct text completion
+generated_ids = model.generate(
+    **model_inputs,
+    max_new_tokens=32768
+)
+output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
 
-#     if not os.path.exists(local_llm_dir):
-#         os.makedirs(local_llm_dir)
+# parsing thinking content
+try:
+    # rindex finding 151668 (</think>)
+    index = len(output_ids) - output_ids[::-1].index(151668)
+except ValueError:
+    index = 0
 
-#         tokenizer = AutoTokenizer.from_pretrained(llm_name)
-#         model = AutoModelForCausalLM.from_pretrained(llm_name, torch_dtype="auto", device_map="auto")
+thinking_content = tokenizer.decode(output_ids[:index], skip_special_tokens=True).strip("\n")
+content = tokenizer.decode(output_ids[index:], skip_special_tokens=True).strip("\n")
 
-#         model.save_pretrained(local_llm_dir)
-#         tokenizer.save_pretrained(local_llm_dir)
-
-#         tokenizer = None
-#         model = None
-
-#     tokenizer = AutoTokenizer.from_pretrained(local_llm_dir)
-#     model = AutoModelForCausalLM.from_pretrained(local_llm_dir, torch_dtype="auto", device_map="auto")
-
-#     return tokenizer, model
-
+print("thinking content:", thinking_content)
+print("content:", content)
