@@ -6,7 +6,7 @@ from src.llm_db_loggers import *
 log_file = os.getenv("LOGFILE")
 
 class ConversationHandler:
-    def __init__(self, llm_name: str = "Qwen/Qwen3-1.7B", context_window_len: int = 5):
+    def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5):
         """
             Conversation instance class. Will keep its context window according to set lenght.
             Initializes its DatabaseStorage and keeps a log of messages.
@@ -18,10 +18,9 @@ class ConversationHandler:
         """
 
         # Initialize directories
+        self.llm_name = llm_name
         self.local_llm_dir = f"ai_models/{llm_name}"
         self.llm_download_cache_dir = f"ai_models/cache"
-
-
 
         if not os.path.exists("ai_models"):
             os.makedirs("ai_models")
@@ -47,9 +46,11 @@ class ConversationHandler:
             A cache wipe will be implemented soon, hence offloading the model after download.
         """
 
-        if not os.path.exists(self.local_llm_dir):
-            os.makedirs(self.local_llm_dir)
-
+        if len(os.listdir(self.local_llm_dir)) == 0:
+            
+            if not os.path.exists(self.local_llm_dir):
+                os.makedirs(self.local_llm_dir)
+            
             tokenizer = AutoTokenizer.from_pretrained(self.llm_name, cache_dir=self.llm_download_cache_dir)
             model = AutoModelForCausalLM.from_pretrained(self.llm_name, torch_dtype="auto", device_map="auto", cache_dir=self.llm_download_cache_dir)
 
