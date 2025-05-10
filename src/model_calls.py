@@ -1,6 +1,11 @@
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.logger import *
+from dotenv import load_dotenv
+
+load_dotenv()
+
+log_file = os.getenv("LOGFILE")
 
 class ConversationHandler:
     def __init__(self, llm_name, context_window_len=5):
@@ -39,16 +44,32 @@ class ConversationHandler:
 
     def _parse_llm_response(self, llm_output):
 
+        # Breaks output on specific tokens to separate thinking
+
         try:
-            # Find 151668 (</think>) token
+            # Find 151668 (</think>) token idx
             index = len(llm_output) - llm_output[::-1].index(151668)
         except ValueError:
             index = 0
 
-        thinking_content = self.tokenizer.decode(llm_output[:index], skip_special_tokens=True).strip("\n")
-        content = self.tokenizer.decode(llm_output[index:], skip_special_tokens=True).strip("\n")
+        if index != 0:
 
-        return thinking_content, content
+            llm_output_think = llm_output[:index]
+            llm_output_content = llm_output[index:]
+
+            llm_output_think.pop()
+            llm_output_think.pop(0)
+
+            thinking_content = self.tokenizer.decode(llm_output_think, skip_special_tokens=True).strip("\n")
+            content = self.tokenizer.decode(llm_output_content, skip_special_tokens=True).strip("\n")
+
+            return thinking_content, content
+        
+        else:
+
+            content = self.tokenizer.decode(llm_output, skip_special_tokens=True).strip("\n")
+
+            return content
 
 
     def generate_chat_response(self, thinking_model = True, max_new_tokens=8096):
@@ -73,8 +94,8 @@ class ConversationHandler:
 
         # TODO call save to db here
 
-        input_token_count = logger(model_inputs["input_ids"][0].size(0), "debug.log")
-        output_token_count = logger(len(llm_output), "debug.log")
+        input_token_count = logger(f"Input token count: {model_inputs["input_ids"][0].size(0)}", "debug.log")
+        output_token_count = logger(f"Output token count: {len(llm_output)}", "debug.log")
 
         return llm_thinking, llm_answer
 
