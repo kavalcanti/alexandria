@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import os
 from sqlalchemy import create_engine
-from src.db_models import db_init, conversations_table, messages_table, metadata as db_metadata
+from src.db_models import db_init, metadata as db_metadata
 
 
 
