@@ -5,7 +5,7 @@ from prompt_toolkit.application import Application, get_app
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit import PromptSession
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import ScrollablePane
+from prompt_toolkit.layout import ScrollablePane, Margin
 from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
@@ -22,16 +22,19 @@ log_file = os.getenv("LOGFILE")
 
 handler = ConversationHandler(llm_model)
 
-msg_buffer = Buffer()
+
+side_margin = Window(width=1)
+
+msg_buffer = Buffer(multiline=True)
 msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
 
-chat_formatted_text = FormattedTextControl()
+chat_formatted_text = FormattedTextControl(focusable=True)
 chat_content = Window(chat_formatted_text, wrap_lines=True, ignore_content_width=True)
-chat_window = ScrollablePane(content=chat_content, keep_cursor_visible=True)
+chat_window = ScrollablePane(content=chat_content, keep_cursor_visible=True, keep_focused_window_visible=True)
 
 thinking_formatted_text = FormattedTextControl()
 thinking_content = Window(thinking_formatted_text, wrap_lines=True, ignore_content_width=True)
-thinking_window = ScrollablePane(content=thinking_content)
+thinking_window = ScrollablePane(content=thinking_content, )
 
 kb = KeyBindings()
 
@@ -48,23 +51,39 @@ bottom_bar_text =  [
     ]
 
 # Chat, msg, sperators and helpbar container
+main_chat_composite = VSplit([
+    side_margin,
+    chat_window,
+    side_margin
+])
 
-chat_composite = HSplit(
+msg_window_composite = VSplit([
+    side_margin,
+    msg_window,
+    side_margin
+])
+
+chat_side_composite = HSplit(
     [
-        chat_window,
+        main_chat_composite,
 
         Window(height=1, char="-", style="class:line"),
 
-        msg_window,
+        msg_window_composite,
     ]
 )
 
+thinking_window_composite = VSplit([
+    side_margin,
+    thinking_window,
+    side_margin
+])
+
 # Future conversation logs container
 main_composite = VSplit(
-    [
-        chat_composite,
+    [   chat_side_composite,
         Window(width=1, char="#", style="class:line"),
-        thinking_window
+        thinking_window_composite,
     ], width=Dimension(weight=1)
 )
 
@@ -162,6 +181,7 @@ async def _(event):
 
     if user_input.strip(): 
 
+        application.layout.focus(chat_formatted_text)
         msg_buffer.text = "AI is busy." 
 
         current_chat_text = chat_formatted_text.text
@@ -183,6 +203,7 @@ async def _(event):
         handler.manage_context_window("assistant", ai_answer)
 
         msg_buffer.text = ""
+        application.layout.focus(msg_window)
 
     else:
 
