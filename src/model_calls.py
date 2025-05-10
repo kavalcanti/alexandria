@@ -16,7 +16,6 @@ class ConversationHandler:
         self.context_window_len = context_window_len
         self.local_llm_dir = f"ai_models/{llm_name}"
         self.tokenizer, self.model = self._load_local_llm(self.llm_name)
-        print(self.tokenizer)
         self.context_window = []
         self.db_storage = DatabaseStorage()
 
@@ -62,16 +61,23 @@ class ConversationHandler:
             thinking_content = self.tokenizer.decode(llm_output_think, skip_special_tokens=True).strip("\n")
             content = self.tokenizer.decode(llm_output_content, skip_special_tokens=True).strip("\n")
 
-            return thinking_content, content
+            self.db_storage.insert_single_message("assistant-reasoning", thinking_content, len(llm_output_think))
+            self.db_storage.insert_single_message("assistant", content, len(llm_output_content))
+
+            return content, thinking_content
         
         else:
 
             content = self.tokenizer.decode(llm_output, skip_special_tokens=True).strip("\n")
 
+            self.db_storage.insert_single_message("assistant", content, len(llm_output_content))
+
             return content
 
 
     def generate_chat_response(self, thinking_model = True, max_new_tokens=8096):
+
+
 
         text = self.tokenizer.apply_chat_template(
             self.context_window,
@@ -89,12 +95,13 @@ class ConversationHandler:
         
         llm_output = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
 
-        llm_thinking, llm_answer = self._parse_llm_response(llm_output)
+        last_user_message = self.context_window[-1]['content']
 
-        # TODO call save to db here
+        logger(last_user_message, "debug.log")
+        logger(model_inputs["input_ids"][0].size(0), "debug.log")
+        self.db_storage.insert_single_message(self.context_window[-1]['role'], last_user_message, model_inputs["input_ids"][0].size(0))
 
-        input_token_count = logger(f"Input token count: {model_inputs["input_ids"][0].size(0)}", "debug.log")
-        output_token_count = logger(f"Output token count: {len(llm_output)}", "debug.log")
+        llm_answer, llm_thinking = self._parse_llm_response(llm_output)
 
         return llm_thinking, llm_answer
 

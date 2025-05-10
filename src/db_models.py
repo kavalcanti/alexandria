@@ -11,10 +11,11 @@ from sqlalchemy import (
     Integer,
     DateTime,
     ForeignKey,
+    Sequence,
     inspect,
     text
 )
-from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP, VARCHAR
+from sqlalchemy.dialects.postgresql import TIMESTAMP, VARCHAR
 from pgvector.sqlalchemy import Vector
 
 db_user = os.getenv('DB_USER')
@@ -36,10 +37,10 @@ conversations_table = Table(
     "conversations",
     metadata,
     Column(
-        "uuid",
-        UUID(as_uuid=True),
+        "id",
+        Integer,
+        Sequence('conversations_id_seq'),
         primary_key=True,
-        default=uuid.uuid4,
         unique=True,
         nullable=False,
     ),
@@ -58,7 +59,7 @@ conversations_table = Table(
         onupdate=datetime.datetime.now,
     ),
     Column("message_count", Integer, nullable=False, default=0),
-    Column("title_embedding", Vector(1024), nullable=True),
+    Column("title_embedding", Vector(384), nullable=True),
 )
 
 # Define the 'messages' table
@@ -66,18 +67,17 @@ messages_table = Table(
     "messages",
     metadata,
     Column(
-        "uuid",
-        UUID(as_uuid=True),
+        "id",
+        Integer,
+        Sequence('conversations_id_seq'),
         primary_key=True,
-        default=uuid.uuid4,
         unique=True,
         nullable=False,
     ),
     Column(
-        "conversation_uuid",
-        UUID(as_uuid=True),
-        ForeignKey("conversations.uuid", ondelete="CASCADE"),
-        nullable=False,
+        "conversation_id",
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=True,
     ),
     Column(
         "timestamp",
@@ -87,7 +87,7 @@ messages_table = Table(
     ),
     Column("role", VARCHAR(24), nullable=False), # e.g., 'system', 'user', 'assistant'
     Column("message", Text, nullable=False),
-    Column("token_count", Integer, nullable=False, default=0),
+    Column("total_token_count", Integer, nullable=False, default=0),
 )
 
 
@@ -102,6 +102,7 @@ def db_init(engine, db_schema, metadata, target_tables):
         inspector = inspect(engine)
 
         existing_tables = inspector.get_table_names(schema=db_schema)
+        print(target_tables)
         print(existing_tables)
 
         table_checker = []
@@ -120,7 +121,7 @@ def db_init(engine, db_schema, metadata, target_tables):
                     # Install the vector extension if not already done
                     # Note: This requires superuser privileges or appropriate database permissions
                     connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-                    
+
                 # Create tables within the schema
                 metadata.drop_all(engine)
                 metadata.create_all(engine)
