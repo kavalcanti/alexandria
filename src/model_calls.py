@@ -1,8 +1,7 @@
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from src.logger import *
 
-
-llm_name = "Qwen/Qwen3-1.7B"
 
 class ConversationHandler:
     def __init__(self, llm_name, context_window_len=5):
@@ -68,10 +67,13 @@ class ConversationHandler:
             **model_inputs,
             max_new_tokens=max_new_tokens
         )
-
+        
         llm_output = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
 
         llm_thinking, llm_answer = self._parse_llm_response(llm_output)
+
+        input_token_count = logger(model_inputs["input_ids"][0].size(0), "debug.log")
+        output_token_count = logger(len(llm_output), "debug.log")
 
         return llm_thinking, llm_answer
 
@@ -85,11 +87,11 @@ class ConversationHandler:
 
         system_prompt = self.context_window[0] if self.context_window and self.context_window[0]["role"] == "system" else None
 
-        if system_prompt and len(self.context_window) >= self.context_window_len:
-            self.context_window.pop(2)
+        if system_prompt and len(self.context_window) > self.context_window_len:
+            self.context_window.pop(1)
             self.context_window.append(formatter)
         elif len(self.context_window) >= self.context_window_len:
-            self.context_window.pop(1)
+            self.context_window.pop(0)
             self.context_window.append(formatter)
         else:
             self.context_window.append(formatter)
