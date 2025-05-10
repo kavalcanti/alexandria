@@ -26,11 +26,11 @@ msg_buffer = Buffer()
 msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
 
 chat_formatted_text = FormattedTextControl()
-chat_content = Window(chat_formatted_text, wrap_lines=True)
-chat_window = ScrollablePane(content=chat_content, keep_cursor_visible=True, keep_focused_window_visible=True)
+chat_content = Window(chat_formatted_text, wrap_lines=True, ignore_content_width=True)
+chat_window = ScrollablePane(content=chat_content, keep_cursor_visible=True)
 
 thinking_formatted_text = FormattedTextControl()
-thinking_content = Window(thinking_formatted_text, wrap_lines=True)
+thinking_content = Window(thinking_formatted_text, wrap_lines=True, ignore_content_width=True)
 thinking_window = ScrollablePane(content=thinking_content)
 
 kb = KeyBindings()
@@ -165,7 +165,7 @@ async def _(event):
         msg_buffer.text = "AI is busy." 
 
         current_chat_text = chat_formatted_text.text
-        chat_formatted_text.text = current_chat_text + f"You:\n {user_input}\n"
+        chat_formatted_text.text = current_chat_text + f"You:\n{user_input}\n"
         get_app().invalidate()
 
         handler.manage_context_window("user", user_input)
@@ -173,10 +173,10 @@ async def _(event):
         ai_answer, ai_thinking = await asyncio.to_thread(handler.generate_chat_response)
         
         current_chat_text = chat_formatted_text.text
-        chat_formatted_text.text = current_chat_text + f"LLM:\n {ai_answer}\n"
+        chat_formatted_text.text = current_chat_text + f"LLM:\n{ai_answer}\n"
 
         current_thinking_text = thinking_formatted_text.text
-        thinking_formatted_text.text = current_thinking_text + f"Thoughts: {ai_thinking}\n"
+        thinking_formatted_text.text = current_thinking_text + f"Thoughts:\n{ai_thinking}\n"
 
         get_app().invalidate()
 
