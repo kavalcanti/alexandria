@@ -84,49 +84,6 @@ application = Application(
     full_screen=True,
 )
 
-
-### --- Utility Keybinds --- ###
-
-
-# @kb.add('c-up')
-# def _(event):
-#     """Scroll chat window up by one line, respecting bounds."""
-#     pane = chat_window # Access the ScrollablePane
-#     # Ensure render_info is available before accessing sizes
-#     if pane.render_info and pane.content.render_info:
-#         # Get rendered heights of the pane and its content
-#         window_height = pane.render_info.window_height
-#         content_height = pane.content.render_info.content_height
-#         # Calculate maximum scroll offset (0 if content fits within the window)
-#         max_scroll = max(0, content_height - window_height)
-
-#         # Decrease scroll by one line
-#         new_scroll = pane.vertical_scroll - 1
-#         # Ensure the new scroll value is within the valid range [0, max_scroll]
-#         pane.vertical_scroll = max(0, min(max_scroll, new_scroll))
-
-#     event.app.invalidate() # Redraw the UI
-
-# @kb.add('c-down')
-# def _(event):
-#     """Scroll chat window down by one line, respecting bounds."""
-#     pane = chat_window # Access the ScrollablePane
-#     # Ensure render_info is available before accessing sizes
-#     if pane.render_info and pane.content.render_info:
-#         # Get rendered heights of the pane and its content
-#         window_height = pane.render_info.window_height
-#         content_height = pane.content.render_info.content_height
-#         # Calculate maximum scroll offset (0 if content fits within the window)
-#         max_scroll = max(0, content_height - window_height)
-
-#         # Increase scroll by one line
-#         new_scroll = pane.vertical_scroll + 1
-#          # Ensure the new scroll value is within the valid range [0, max_scroll]
-#         pane.vertical_scroll = max(0, min(max_scroll, new_scroll))
-
-#     event.app.invalidate() # Redraw the UI
-
-
 @kb.add('c-up')
 def _(event):
     """Scroll chat window up by one line."""
@@ -141,24 +98,47 @@ def _(event):
     chat_window.vertical_scroll += 1
     event.app.invalidate() # Redraw the UI
 
-@kb.add('c-m' ,eager=True)
+@kb.add('s-up')
+def _(event):
+    """Scroll chat window up by one line."""
+    # Decrease the vertical scroll offset, ensuring it doesn't go below 0
+    thinking_window.vertical_scroll = max(0, chat_window.vertical_scroll - 1)
+    event.app.invalidate() # Redraw the UI
+
+@kb.add('s-down')
+def _(event):
+    """Scroll chat window down by one line."""
+    # Increase the vertical scroll offset
+    thinking_window.vertical_scroll += 1
+    event.app.invalidate() # Redraw the UI
+
+@kb.add('c-m')
 def _(event):
     event.app.layout.focus(msg_window)
 
-@kb.add('c-n',eager=True)
+@kb.add('c-n')
 def _(event):
     event.app.layout.focus(chat_content)
 
-@kb.add("c-q", eager=True)
+@kb.add("c-q")
 def _(event):
     """
     Pressing Ctrl-Q or Ctrl-C will exit the user interface.
     """
     event.app.exit()
 
+@kb.add('c-o')
+def _(event):
+    chat_formatted_text.text == "Generating new handler instance."
+    thinking_formatted_text == "Generating new handler instance."
+    get_app().invalidate()
+    handler = ConversationHandler(llm_model)
+    chat_formatted_text.text == ""
+    thinking_formatted_text == ""
+
 ### --- Main chat send loop --- ###
 
-@kb.add('c-space', eager=True)
+@kb.add('c-space')
 async def _(event):
     """
     Handle Control+Enter key press to send input.
