@@ -1,6 +1,7 @@
 import uuid
 import datetime
 import os
+import sys
 from sqlalchemy import (
     create_engine,
     MetaData,
@@ -44,7 +45,7 @@ conversations_table = Table(
         unique=True,
         nullable=False,
     ),
-    Column("title", VARCHAR(256), nullable=False),
+    Column("title", VARCHAR(256), nullable=True),
     Column(
         "created_at",
         TIMESTAMP(timezone=True),
@@ -91,41 +92,29 @@ messages_table = Table(
 )
 
 
-target_tables = [conversations_table, messages_table]
-
-def db_init(engine, db_schema, metadata, target_tables):
+def db_init(engine, db_schema, metadata, existing_tables, target_tables):
     """Checks if tables exist and creates them if they don't.
        Currently performs DESTRUCTIVE operation to sync schema changes while in development.
        Backup your data!
     """
     try:
-        inspector = inspect(engine)
-
-        existing_tables = inspector.get_table_names(schema=db_schema)
-        print(target_tables)
-        print(existing_tables)
 
         table_checker = []
+
         for t in target_tables:
             table_checker.append(t in existing_tables)
-        print(table_checker)
-        if False in table_checker:
 
-        # if not conversations_exist or not messages_exist:
+        if False in table_checker:
             print(f"Schema '{db_schema}' does not match expected tables.")
             print("DESTRUCTIVELY RECONSTRUCTING.")
             try:
                 with engine.connect() as connection:
-                    # Create the schema if it doesn't exist
                     connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {db_schema}"))
-                    # Install the vector extension if not already done
-                    # Note: This requires superuser privileges or appropriate database permissions
                     connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
 
-                # Create tables within the schema
                 metadata.drop_all(engine)
                 metadata.create_all(engine)
-                # print(f"Schema '{DB_SCHEMA}' and tables created successfully.")
+
             except Exception as e:
                 print(f"An error occurred during schema and table creation: {e}")
                 print("Please ensure the database is running, the user has necessary permissions, and the 'vector' extension is installed.")
