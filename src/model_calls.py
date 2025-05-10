@@ -2,7 +2,6 @@ import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.logger import *
 
-
 class ConversationHandler:
     def __init__(self, llm_name, context_window_len=5):
 
@@ -71,6 +70,8 @@ class ConversationHandler:
         llm_output = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
 
         llm_thinking, llm_answer = self._parse_llm_response(llm_output)
+
+        # TODO call save to db here
 
         input_token_count = logger(model_inputs["input_ids"][0].size(0), "debug.log")
         output_token_count = logger(len(llm_output), "debug.log")
