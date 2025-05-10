@@ -1,4 +1,6 @@
 import asyncio
+import os
+from dotenv import load_dotenv
 from prompt_toolkit.application import Application, get_app
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit import PromptSession
@@ -8,12 +10,17 @@ from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.patch_stdout import patch_stdout
+from prompt_toolkit.layout.dimension import Dimension 
 from src.model_calls import ConversationHandler
 import time
 
-llm_model = "Qwen/Qwen3-1.7B"
+load_dotenv()
 
-# handler = ConversationHandler(llm_model)
+llm_model = os.getenv('HF_MODEL')
+log_file = os.getenv("LOGFILE")
+
+
+handler = ConversationHandler(llm_model)
 
 msg_buffer = Buffer()
 msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
@@ -28,36 +35,37 @@ thinking_window = ScrollablePane(content=thinking_content)
 
 kb = KeyBindings()
 
-helpbar_text =  [
-        ("class:title", " Ctrl-Q: exit. Ctrl-Space: Send message. "),
+
+top_bar_text = [
+        ("class:title", " Welcome to the world of tomorrow "),
         # ("class:title", " (Press [Ctrl-Q] to quit, [Ctrl+A] to send msg.)"),
     ]
 
-titlebar_text = [
-        ("class:title", " Hello world "),
-        ("class:title", " (Press [Ctrl-Q] to quit, [Ctrl+A] to send msg.)"),
+
+bottom_bar_text =  [
+        ("class:title", " Ctrl-Space: Send. | Ctrl-Q: Quit. | "),
+        ("class:title", "\n Ctrl + Up/Down: Chat scroll. | Shift + Up/Down: Thoghts Up/Down | "),
     ]
 
 # Chat, msg, sperators and helpbar container
-body_a = HSplit(
+
+chat_composite = HSplit(
     [
         chat_window,
 
         Window(height=1, char="-", style="class:line"),
 
         msg_window,
-
-        Window(height=1, char="-", style="class:line"),
     ]
 )
 
 # Future conversation logs container
-body_b = VSplit(
+main_composite = VSplit(
     [
-        body_a,
+        chat_composite,
         Window(width=1, char="#", style="class:line"),
         thinking_window
-    ]
+    ], width=Dimension(weight=1)
 )
 
 # Main app container
@@ -65,19 +73,22 @@ root_container = HSplit(
     [
         Window(
             height=1,
-            content=FormattedTextControl(titlebar_text),
+            content=FormattedTextControl(top_bar_text),
             align=WindowAlign.CENTER,
         ),
 
         Window(height=1, char="-", style="class:line"),
 
-        body_b,
+        main_composite,
+
+        Window(height=1, char="-", style="class:line"),
 
         Window(
-            height=1,
-            content=FormattedTextControl(helpbar_text),
-            align=WindowAlign.CENTER,
-        )
+            height=2,
+            content=FormattedTextControl(bottom_bar_text),
+            align=WindowAlign.LEFT,
+        ),
+        
     ]
 )
 
@@ -154,7 +165,7 @@ async def _(event):
         msg_buffer.text = "AI is busy." 
 
         current_chat_text = chat_formatted_text.text
-        chat_formatted_text.text = current_chat_text + f"You: {user_input}\n"
+        chat_formatted_text.text = current_chat_text + f"You:\n {user_input}\n"
         get_app().invalidate()
 
         handler.manage_context_window("user", user_input)
@@ -162,7 +173,7 @@ async def _(event):
         ai_thinking, ai_answer = await asyncio.to_thread(handler.generate_chat_response)
         
         current_chat_text = chat_formatted_text.text
-        chat_formatted_text.text = current_chat_text + f"LLM: {ai_answer}\n"
+        chat_formatted_text.text = current_chat_text + f"LLM:\n {ai_answer}\n"
 
         current_thinking_text = thinking_formatted_text.text
         thinking_formatted_text.text = current_thinking_text + f"Thoughts: {ai_thinking}\n"
