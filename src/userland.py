@@ -11,7 +11,7 @@ from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.patch_stdout import patch_stdout
 from prompt_toolkit.layout.dimension import Dimension 
-from src.model_calls import ConversationHandler
+from src.conversation import ConversationHandler
 import time
 
 load_dotenv()
@@ -170,7 +170,7 @@ async def _(event):
 
         handler.manage_context_window("user", user_input)
 
-        ai_thinking, ai_answer = await asyncio.to_thread(handler.generate_chat_response)
+        ai_answer, ai_thinking = await asyncio.to_thread(handler.generate_chat_response)
         
         current_chat_text = chat_formatted_text.text
         chat_formatted_text.text = current_chat_text + f"LLM:\n {ai_answer}\n"
