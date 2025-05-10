@@ -1,7 +1,7 @@
-from dotenv import load_dotenv
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, update, select
 from src.db_models import db_init, metadata as db_metadata
+from src.logger import *
 
 
 class DatabaseStorage:
@@ -16,25 +16,30 @@ class DatabaseStorage:
 
         self.engine = create_engine(db_url)
         self.metadata = db_metadata
+        self.db_schema = self.metadata.schema
 
-        try:
-            db_schema = self.metadata.schema
-            tables = self.metadata.tables
+        self.conversations_table = self.metadata.tables[f"{self.db_schema}.conversations"]
+        self.messages_table = self.metadata.tables[f"{self.db_schema}.messages"]
 
-            self.conversations_table = self.metadata.tables[f"{db_schema}.conversations"]
-            self.messages_table = self.metadata.tables[f"{db_schema}.messages"]
-        except KeyError as e:
-            print(f"Error: Table {e} not found in imported metadata. Ensure tables are defined in src.db_models with schema='{db_schema}'.")
-            raise
+        self._validate_schema()
 
-        if len(tables) == 0: 
-            db_init(self.engine, db_schema, self.metadata, [self.messages_table, self.conversations_table])
-        
         return None
 
-    def insert_single_message(self, role: str, message: str, token_count: int):
+
+    def _validate_schema(self):
+
+        inspector = inspect(self.engine)
+
+        required_tables = [t for t in self.metadata.tables]
+        existing_tables = [t for t in inspector.get_table_names(schema=self.db_schema)]
+
+        if len(existing_tables) < len(required_tables): 
+            db_init(self.engine, self.db_schema, self.metadata, existing_tables, required_tables)
+
+
+    def insert_single_message(self,conversation_id: int , role: str, message: str, token_count: int):
         """
-        Inserts a single conversation record into the database.
+        Inserts a single message record into the database.
 
         Args:
             title: The title of the conversation.
@@ -42,6 +47,7 @@ class DatabaseStorage:
         """
         # Create an insert statement
         insert_stmt = self.messages_table.insert().values(
+            conversation_id=conversation_id,
             role=role,
             message=message,
             total_token_count=token_count,
@@ -52,15 +58,10 @@ class DatabaseStorage:
             result = connection.execute(insert_stmt)
             connection.commit()
 
-class ChatsStorage(DatabaseStorage):
-    def __init__(self):
-        ### NO RECURSIVE DEPENDENCIES
-        ### need to implement titling without calling model_calls
-        # Chat CRUD to db
-
         return None
 
-    def insert_single_conversation(self, title, title_embedding: list[float] = None):
+
+    def insert_single_conversation(self, conversation_id: int, message_count: int = 0, title: str = "", title_embedding: list[float] = None):
         """
         Inserts a single conversation record into the database.
 
@@ -71,19 +72,28 @@ class ChatsStorage(DatabaseStorage):
         # Create an insert statement
 
         insert_stmt = self.conversations_table.insert().values(
+            message_count=message_count,
             title=title,
-            # uuid, created_at, updated_at, and message_count have defaults and don't need to be explicitly provided
-            # unless you want to override the default.
-            title_embedding=title_embedding
+            title_embedding=title_embedding,
         )
 
+        select_stmt = select(self.conversations_table).where(self.conversations_table.c.id==conversation_id)
+
+        logger(select, "debug.log")
         # Execute the insert statement
         with self.engine.connect() as connection:
+            recalled_conversation = connection.execute(select_stmt)
+
+            logger(recalled_conversation,"debug.log")
+
             result = connection.execute(insert_stmt)
             connection.commit()
 
-class MessagesStorage(DatabaseStorage):
-    def __init__(self):
-        ### Message CRUD to db
-        return None
+    def update_message_count(self, conversation_id: int):
+        update_stmt = update(self.conversations_table).where(self.conversations_table.c.id == conversation_id).values(message_count = self.conversations_table.c.message_count + 1)
+        
 
+        # Execute the insert statement
+        with self.engine.connect() as connection:
+            result = connection.execute(update_stmt)
+            connection.commit()

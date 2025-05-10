@@ -1,4 +1,5 @@
 from src.userland import application
+
 import logging
 import os
 from contextlib import redirect_stderr, redirect_stdout
@@ -33,3 +34,4 @@ if __name__ == "__main__":
     
     with patch_stdout():
         application.run()
+
