@@ -1,8 +1,9 @@
-# Viability
-
+# COMPLETED, YAY!
 ### llm response object parsing
 must parse <think> tag or disable temporarily
 token count extraction
+
+# Viability
 
 ### Make chat window track bottom
 chat window must always focus on end of previos usr/llm message
