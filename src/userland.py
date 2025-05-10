@@ -6,6 +6,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import ScrollablePane
 from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
+from prompt_toolkit.layout.dimension import Dimension
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.patch_stdout import patch_stdout
 from src.model_calls import ConversationHandler
@@ -13,7 +14,7 @@ import time
 
 llm_model = "Qwen/Qwen3-1.7B"
 
-handler = ConversationHandler(llm_model)
+# handler = ConversationHandler(llm_model)
 
 msg_buffer = Buffer()
 msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
@@ -28,43 +29,43 @@ thinking_window = ScrollablePane(content=thinking_content)
 
 kb = KeyBindings()
 
-helpbar_text =  [
-        ("class:title", " Ctrl-Q: exit. Ctrl-Space: Send message. "),
-        # ("class:title", " (Press [Ctrl-Q] to quit, [Ctrl+A] to send msg.)"),
-    ]
-
 titlebar_text = [
-        ("class:title", " Hello world "),
-        ("class:title", " (Press [Ctrl-Q] to quit, [Ctrl+A] to send msg.)"),
+        ("class:title", " Welcome to the world of tomorrow "),
+        ("class:title", "A CLI interface for LLMs"),
     ]
 
-# Chat, msg, sperators and helpbar container
-body_a = HSplit(
-    [
-        chat_window,
+helpbar_l1 = [
+        ("class:title", "(Press [Ctrl-Q] to quit, [Ctrl+Space] to send msg."),
+]
 
-
-        Window(height=1, char="-", style="class:line"),
-
-        msg_window,
-        Window(height=1, char="-", style="class:line"),
-        Window(height=1, content=FormattedTextControl(helpbar_text)),
+helpbar_l2 =  [
+        ("class:title", "Ctrl+Arrow to scroll chat Shift+Arrow to scroll thinking"),
     ]
-)
 
-# Future conversation logs container
-body_b = VSplit(
-    [
-        body_a,
+
+
+# Chat and message
+msg_and_chat_composite = HSplit(
+                            [
+                                chat_window,
+                                Window(height=1, char="-", style="class:line"),
+                                msg_window,
+                            ]
+                        )
+
+
+chat_and_thinking_composite = VSplit(
+    width=Dimension(weight=1),
+    children=[
+        msg_and_chat_composite,
         Window(width=1, char="#", style="class:line"),
-        thinking_window
+        thinking_window,
     ]
 )
 
 # Main app container
 root_container = HSplit(
     [
-
         Window(
             height=1,
             content=FormattedTextControl(titlebar_text),
@@ -73,7 +74,21 @@ root_container = HSplit(
 
         Window(height=1, char="-", style="class:line"),
 
-        body_b,
+        chat_and_thinking_composite,
+
+        Window(height=1, char="-", style="class:line"),
+
+        Window(
+            height=1,
+            content=FormattedTextControl(helpbar_l1),
+            align=WindowAlign.LEFT,
+        ),
+
+        Window(
+            height=1,
+            content=FormattedTextControl(helpbar_l2),
+            align=WindowAlign.LEFT,
+        ),
     ]
 )
 
@@ -150,7 +165,7 @@ async def _(event):
         msg_buffer.text = "AI is busy." 
 
         current_chat_text = chat_formatted_text.text
-        chat_formatted_text.text = current_chat_text + f"You: {user_input}\n"
+        chat_formatted_text.text = current_chat_text + f"You:\n {user_input}\n"
         get_app().invalidate()
 
         handler.manage_context_window("user", user_input)
@@ -158,10 +173,10 @@ async def _(event):
         ai_thinking, ai_answer = await asyncio.to_thread(handler.generate_chat_response)
         
         current_chat_text = chat_formatted_text.text
-        chat_formatted_text.text = current_chat_text + f"LLM: {ai_answer}\n"
+        chat_formatted_text.text = current_chat_text + f"LLM:\n {ai_answer}\n"
 
         current_thinking_text = thinking_formatted_text.text
-        thinking_formatted_text.text = current_thinking_text + f"Thoughts: {ai_thinking}\n"
+        thinking_formatted_text.text = current_thinking_text + f"Thoughts:\n {ai_thinking}\n"
 
         get_app().invalidate()
 
