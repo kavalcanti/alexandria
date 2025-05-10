@@ -1,9 +1,7 @@
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.logger import *
-from dotenv import load_dotenv
-
-load_dotenv()
+from src.llm_db_loggers import *
 
 log_file = os.getenv("LOGFILE")
 
@@ -20,7 +18,7 @@ class ConversationHandler:
         self.tokenizer, self.model = self._load_local_llm(self.llm_name)
         print(self.tokenizer)
         self.context_window = []
-
+        self.db_storage = DatabaseStorage()
 
     def _load_local_llm(self, llm_name=False):
 
@@ -45,6 +43,7 @@ class ConversationHandler:
     def _parse_llm_response(self, llm_output):
 
         # Breaks output on specific tokens to separate thinking
+        # TODO Base this on tokenizer.json
 
         try:
             # Find 151668 (</think>) token idx

@@ -3,10 +3,13 @@ import logging
 import os
 from contextlib import redirect_stderr, redirect_stdout
 from prompt_toolkit.patch_stdout import patch_stdout
-
-
 import logging
 import re
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 def set_global_logging_level(level=logging.ERROR, prefices=[""]):
     """
     Override logging levels of different modules based on their name as a prefix.

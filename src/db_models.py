@@ -1,5 +1,6 @@
 import uuid
 import datetime
+import os
 from sqlalchemy import (
     create_engine,
     MetaData,
@@ -15,11 +16,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP, VARCHAR
 from pgvector.sqlalchemy import Vector
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
 
 db_user = os.getenv('DB_USER')
 db_host = os.getenv('DB_HOST')
@@ -30,10 +26,10 @@ db_url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}/{db}"
 
 engine = create_engine(db_url)
 
-DB_SCHEMA = 'exp'
+db_schema = 'exp'
 
 # Metadata with schema
-metadata = MetaData(schema=DB_SCHEMA)
+metadata = MetaData(schema=db_schema)
 
 # Conversations definition. Holds groups of messages.
 conversations_table = Table(
@@ -95,10 +91,9 @@ messages_table = Table(
 )
 
 
-
 target_tables = [conversations_table, messages_table]
 
-def db_init():
+def db_init(engine, db_schema, metadata, target_tables):
     """Checks if tables exist and creates them if they don't.
        Currently performs DESTRUCTIVE operation to sync schema changes while in development.
        Backup your data!
@@ -106,7 +101,8 @@ def db_init():
     try:
         inspector = inspect(engine)
 
-        existing_tables = inspector.get_table_names(schema=DB_SCHEMA)
+        existing_tables = inspector.get_table_names(schema=db_schema)
+        print(existing_tables)
 
         table_checker = []
         for t in target_tables:
@@ -115,15 +111,16 @@ def db_init():
         if False in table_checker:
 
         # if not conversations_exist or not messages_exist:
-            print(f"Schema '{DB_SCHEMA}' does not match expected tables.")
+            print(f"Schema '{db_schema}' does not match expected tables.")
             print("DESTRUCTIVELY RECONSTRUCTING.")
             try:
                 with engine.connect() as connection:
                     # Create the schema if it doesn't exist
-                    connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {DB_SCHEMA}"))
+                    connection.execute(text(f"CREATE SCHEMA IF NOT EXISTS {db_schema}"))
                     # Install the vector extension if not already done
                     # Note: This requires superuser privileges or appropriate database permissions
                     connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                    
                 # Create tables within the schema
                 metadata.drop_all(engine)
                 metadata.create_all(engine)
@@ -131,11 +128,11 @@ def db_init():
             except Exception as e:
                 print(f"An error occurred during schema and table creation: {e}")
                 print("Please ensure the database is running, the user has necessary permissions, and the 'vector' extension is installed.")
-                sys.exit(1) # Exit if table creation fails
+                # sys.exit(1) # Exit if table creation fails
         else:
-            print(f"Schema '{DB_SCHEMA}' and tables already exist.")
+            print(f"Schema '{db_schema}' and tables already exist.")
 
     except Exception as e:
         print(f"An error occurred while trying to connect to the database or inspect tables: {e}")
         print("Please check your database connection string and ensure the database server is accessible.")
-        sys.exit(1) # Exit if inspection fails
+        # sys.exit(1) # Exit if inspection fails
