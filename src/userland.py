@@ -8,7 +8,7 @@ from prompt_toolkit.application import Application
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.patch_stdout import patch_stdout
 
-from src.conversation import ConversationHandler
+from src.llm.conversation import ConversationHandler
 from src.ui.layout import create_layout_components
 from src.ui.keybindings import create_keybindings
 

@@ -6,7 +6,7 @@ import os
 import re
 from prompt_toolkit.application import get_app
 from prompt_toolkit.key_binding import KeyBindings
-from src.conversation import ConversationHandler
+from src.llm.conversation import ConversationHandler
 
 def create_keybindings(
     msg_buffer,

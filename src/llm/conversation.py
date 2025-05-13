@@ -1,19 +1,21 @@
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.logger import *
-from src.llm_db_loggers import *
+from src.llm.llm_db_loggers import *
 
-log_file = os.getenv("LOGFILE")
+# log_file = os.getenv("LOGFILE")
+
+logger = logging.getLogger(__name__)
 
 class ConversationHandler:
     def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5):
         """
             Conversation instance class. Will keep its context window according to set lenght.
             Initializes its DatabaseStorage and keeps a log of messages.
-            Tested to work with Qwen3 Models. Defaults to Qwen3 1.7B.
+            Tested to work with Qwen3 Models. Defaults to Qwen3 0.6B.
 
             Params:
-            llm_name: str HF LLM name. Defaults to Qwen3 1.7B
+            llm_name: str HF LLM name. Defaults to Qwen3 0.6B
             context_window_len: int number of messages to keep in context window, including system message.
         """
 
@@ -33,9 +35,10 @@ class ConversationHandler:
         self.db_storage = DatabaseStorage()
 
         # TODO Initialize conversation
-        
         self.conversation_id = 1
-        self.db_storage.insert_single_conversation(1)
+
+        if not self.db_storage.conversation_exists(self.conversation_id):
+            self.db_storage.insert_single_conversation(self.conversation_id)
 
 
         return None
@@ -110,9 +113,7 @@ class ConversationHandler:
                                                 content, 
                                                 len(llm_output_content)
                                                 )
-
-            
-        
+  
         else:
             
             thinking_content = "None"
