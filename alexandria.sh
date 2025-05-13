@@ -1,5 +1,5 @@
 #!/bin/bash
 
 eval "$(conda shell.bash hook)"
-conda activate /home/kaoue/code/alexandria/.conda
+conda activate ./.conda
 python main.py
