@@ -35,12 +35,22 @@ def create_layout_components():
 
     # Status bars
     top_bar_text = [
-        ("class:title", " Welcome to the world of tomorrow "),
+        ("class:title", " Alexandria - Terminal-based Local LLM Interface "),
     ]
 
     bottom_bar_text = [
-        ("class:title", " Ctrl-Space: Send. | Ctrl-Q: Quit. | "),
-        ("class:title", "\n Ctrl + Up/Down: Chat scroll. | Shift + Up/Down: Thoughts Up/Down | "),
+        ("class:title", " Essential: "),
+        ("class:shortcut", "Ctrl+Space"),
+        ("class:title", ": Send | "),
+        ("class:shortcut", "Ctrl+Q"),
+        ("class:title", ": Quit | "),
+        ("class:shortcut", "Ctrl+O"),
+        ("class:title", ": Reset\n"),
+        ("class:title", " Navigation: "),
+        ("class:shortcut", "Ctrl+↑/↓"),
+        ("class:title", ": Chat scroll | "),
+        ("class:shortcut", "Shift+↑/↓"),
+        ("class:title", ": Thoughts scroll"),
     ]
 
     # Main chat composite
