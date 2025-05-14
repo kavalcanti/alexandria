@@ -178,6 +178,44 @@ class DatabaseStorage:
             logger.error(f"Failed to update message count: {str(e)}")
             raise
 
+    def update_conversation_title(self, conversation_id: int, title: str, title_embedding: list[float] = None):
+        """
+        Update the title and optionally the title embedding for a conversation.
+        The title_embedding parameter is reserved for future implementation of semantic search features.
+
+        Args:
+            conversation_id: The ID of the conversation to update
+            title: The new title for the conversation
+            title_embedding: Optional vector embedding for the title (default: None)
+            
+        Raises:
+            ValueError: If any input validation fails
+            SQLAlchemyError: If database operation fails
+        """
+        try:
+            # Validate inputs
+            validated_id = self.validator.validate_id(conversation_id)
+            validated_title = self.validator.sanitize_string(title)
+            
+            # Build update values
+            update_values = {"title": validated_title}
+            if title_embedding is not None:
+                validated_embedding = self.validator.validate_vector(title_embedding)
+                update_values["title_embedding"] = validated_embedding
+
+            update_stmt = (
+                update(self.conversations_table)
+                .where(self.conversations_table.c.id == validated_id)
+                .values(**update_values)
+            )
+
+            with self.get_connection() as conn:
+                conn.execute(update_stmt)
+                
+        except (ValueError, SQLAlchemyError) as e:
+            logger.error(f"Failed to update conversation title: {str(e)}")
+            raise
+
     def get_context_window_messages(self, conversation_id: int, window_size: int) -> list[dict]:
         """
         Fetch the most recent messages for the context window.

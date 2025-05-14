@@ -8,7 +8,7 @@ from src.llm.llm_db_loggers import *
 logger = logging.getLogger(__name__)
 
 class ConversationHandler:
-    def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5, load_latest_system: bool = True):
+    def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5, conversation_id: int = 1, load_latest_system: bool = True):
         """
             Conversation instance class. Will keep its context window according to set lenght.
             Initializes its DatabaseStorage and keeps a log of messages.
@@ -17,6 +17,7 @@ class ConversationHandler:
             Params:
             llm_name: str HF LLM name. Defaults to Qwen3 0.6B
             context_window_len: int number of messages to keep in context window, including system message.
+            conversation_id: int id of the conversation. Defaults to 1.
             load_latest_system: bool whether to load only the latest system message (True) or all system messages (False)
         """
 
@@ -35,7 +36,7 @@ class ConversationHandler:
         self.db_storage = DatabaseStorage()
 
         # Initialize conversation
-        self.conversation_id = 1
+        self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
 
         if not self.db_storage.conversation_exists(self.conversation_id):
@@ -191,4 +192,54 @@ class ConversationHandler:
 
         self.db_storage.update_message_count(self.conversation_id)
         
+        # After the first exchange, generate a title for the conversation
+        # Account for both cases: with and without system message
+        if len(self.context_window) in [2, 3]:  # One exchange (user + assistant) with optional system message
+            self.generate_conversation_title()
+        
         return llm_answer, llm_thinking
+
+    def generate_conversation_title(self, max_new_tokens: int = 50):
+        """
+        Generate a title for the conversation based on the first exchange between user and assistant.
+        This method should be called after the first complete exchange (one user message and one assistant response).
+        Will work with or without a system message present.
+        
+        Args:
+            max_new_tokens: Maximum number of tokens for the generated title
+            
+        Returns:
+            None, but updates the conversation title in the database
+        """
+        window_len = len(self.context_window)
+        if window_len not in [2, 3]:  # Ensure we have exactly one exchange (with optional system message)
+            return
+            
+        # Create a prompt for title generation
+        title_prompt = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant. Based on the following exchange, generate a concise and descriptive title (max 50 characters)."
+            }
+        ] + self.context_window
+
+        # Generate title using the model
+        text = self.tokenizer.apply_chat_template(
+            title_prompt,
+            tokenize=False,
+            add_generation_prompt=True,
+            enable_thinking=False  # No need for thinking mode for title generation
+        )
+
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        model_outputs = self.model.generate(
+            **model_inputs,
+            max_new_tokens=max_new_tokens
+        )
+
+        # Extract the generated title
+        title_output = model_outputs[0][len(model_inputs.input_ids[0]):].tolist()
+        title = self.tokenizer.decode(title_output, skip_special_tokens=True).strip("\n")
+
+        # Update the conversation title in the database
+        self.db_storage.update_conversation_title(self.conversation_id, title)
