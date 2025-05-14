@@ -1,7 +1,7 @@
 """Database storage and logging operations."""
 import logging
 from contextlib import contextmanager
-from sqlalchemy import update, select
+from sqlalchemy import update, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from src.db.db_config import get_engine, metadata
 from src.db.db_init import DatabaseInitializer
@@ -269,4 +269,22 @@ class DatabaseStorage:
 
         except (ValueError, SQLAlchemyError) as e:
             logger.error(f"Failed to fetch context window messages: {str(e)}")
+            raise
+
+    def get_next_conversation_id(self) -> int:
+        """
+        Get the next available conversation ID from the sequence.
+        
+        Returns:
+            int: Next available conversation ID
+            
+        Raises:
+            SQLAlchemyError: If database operation fails
+        """
+        try:
+            with self.get_connection() as conn:
+                result = conn.execute(text("SELECT nextval('conversations_id_seq')"))
+                return result.scalar()
+        except SQLAlchemyError as e:
+            logger.error(f"Failed to get next conversation ID: {str(e)}")
             raise

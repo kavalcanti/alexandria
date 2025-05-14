@@ -39,7 +39,7 @@ def create_application(conversation_id=None):
     # Create conversation handler with specified ID or default
     handler = ConversationHandler(
         os.getenv('HF_MODEL'),
-        conversation_id=conversation_id if conversation_id else 1
+        conversation_id=conversation_id  # None by default, which will create a new conversation
     )
 
     # Create application instance

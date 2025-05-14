@@ -8,6 +8,7 @@ A sophisticated terminal-based chat interface for interacting with Large Languag
 - 🤖 Integration with Hugging Face transformers for LLM functionality
 - 💭 Visualization of LLM reasoning/thought process
 - 💾 Persistent conversation storage using PostgreSQL
+- 🔄 Automatic conversation management with unique IDs
 - 🔍 Vector embedding support for future semantic search capabilities
 - 📜 Configurable conversation history with sliding context window
 - 💻 Local model caching for improved performance
@@ -56,17 +57,22 @@ LOGFILE=alexandria.log
 
 5. Start Alexandria:
 
-To start a new conversation:
 ```bash
+# Start a new conversation (default behavior)
 ./alexandria.sh
-```
 
-To continue an existing conversation:
-```bash
+# Continue an existing conversation
 ./alexandria.sh -c CONVERSATION_ID
 # or
 ./alexandria.sh --conversation CONVERSATION_ID
 ```
+
+During use:
+- Press `Ctrl+O` to start a new conversation at any time
+- Press `Ctrl+Q` to exit the application
+- Press `Ctrl+Space` to send a message
+- Use `Ctrl+Up/Down` to scroll chat history
+- Use `Shift+Up/Down` to scroll thought process
 
 ## Documentation
 

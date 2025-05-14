@@ -8,7 +8,7 @@ from src.llm.llm_db_loggers import *
 logger = logging.getLogger(__name__)
 
 class ConversationHandler:
-    def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5, conversation_id: int = 1, load_latest_system: bool = True):
+    def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5, conversation_id: int = None, load_latest_system: bool = True):
         """
             Conversation instance class. Will keep its context window according to set lenght.
             Initializes its DatabaseStorage and keeps a log of messages.
@@ -17,7 +17,7 @@ class ConversationHandler:
             Params:
             llm_name: str HF LLM name. Defaults to Qwen3 0.6B
             context_window_len: int number of messages to keep in context window, including system message.
-            conversation_id: int id of the conversation. Defaults to 1.
+            conversation_id: int id of the conversation. If None, creates a new conversation.
             load_latest_system: bool whether to load only the latest system message (True) or all system messages (False)
         """
 
@@ -36,11 +36,17 @@ class ConversationHandler:
         self.db_storage = DatabaseStorage()
 
         # Initialize conversation
-        self.conversation_id = conversation_id
-        self.load_latest_system = load_latest_system
-
-        if not self.db_storage.conversation_exists(self.conversation_id):
+        if conversation_id is None:
+            # Create a new conversation
+            self.conversation_id = self.db_storage.get_next_conversation_id()
             self.db_storage.insert_single_conversation(self.conversation_id)
+        else:
+            # Use existing conversation or create it if it doesn't exist
+            self.conversation_id = conversation_id
+            if not self.db_storage.conversation_exists(self.conversation_id):
+                self.db_storage.insert_single_conversation(self.conversation_id)
+
+        self.load_latest_system = load_latest_system
 
         # Load initial context window from database
         self.context_window = self._load_context_window()
