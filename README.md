@@ -11,6 +11,7 @@ A sophisticated terminal-based chat interface for interacting with Large Languag
 - 🔍 Vector embedding support for future semantic search capabilities
 - 📜 Configurable conversation history with sliding context window
 - 💻 Local model caching for improved performance
+- 🔄 Resume previous conversations using conversation IDs
 
 ## Prerequisites
 
@@ -54,8 +55,17 @@ LOGFILE=alexandria.log
 ```
 
 5. Start Alexandria:
+
+To start a new conversation:
 ```bash
 ./alexandria.sh
+```
+
+To continue an existing conversation:
+```bash
+./alexandria.sh -c CONVERSATION_ID
+# or
+./alexandria.sh --conversation CONVERSATION_ID
 ```
 
 ## Documentation

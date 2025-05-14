@@ -15,10 +15,13 @@ from src.ui.state_manager import StateManager
 
 load_dotenv()
 
-def create_application():
+def create_application(conversation_id=None):
     """
     Create and configure the main application instance.
     
+    Args:
+        conversation_id: Optional ID of an existing conversation to continue
+        
     Returns:
         Application: Configured prompt_toolkit application
     """
@@ -33,8 +36,11 @@ def create_application():
         msg_window
     ) = create_layout_components()
 
-    # Create conversation handler
-    handler = ConversationHandler(os.getenv('HF_MODEL'))
+    # Create conversation handler with specified ID or default
+    handler = ConversationHandler(
+        os.getenv('HF_MODEL'),
+        conversation_id=conversation_id if conversation_id else 1
+    )
 
     # Create application instance
     app = Application(
@@ -61,7 +67,22 @@ def create_application():
 
     return app
 
+class Alexandria:
+    def __init__(self):
+        self._app = None
+        
+    def create(self, conversation_id=None):
+        """Create the application instance with the given conversation ID"""
+        self._app = create_application(conversation_id)
+        return self
+        
+    def run(self, conversation_id=None):
+        """Run the application with an optional conversation ID"""
+        if conversation_id or not self._app:
+            self.create(conversation_id)
+        self._app.run()
+
 # Create the application instance
-application = create_application()
+application = Alexandria()
 
 
