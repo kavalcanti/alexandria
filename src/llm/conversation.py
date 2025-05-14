@@ -31,7 +31,6 @@ class ConversationHandler:
         # Load llm and storage objects
         self.tokenizer, self.model = self._load_local_llm()
         self.context_window_len = context_window_len
-        self.context_window = []
         self.db_storage = DatabaseStorage()
 
         # TODO Initialize conversation
@@ -40,6 +39,11 @@ class ConversationHandler:
         if not self.db_storage.conversation_exists(self.conversation_id):
             self.db_storage.insert_single_conversation(self.conversation_id)
 
+        # Load initial context window from database
+        self.context_window = self.db_storage.get_context_window_messages(
+            self.conversation_id, 
+            self.context_window_len
+        )
 
         return None
 
@@ -68,14 +72,39 @@ class ConversationHandler:
 
         return tokenizer, model
 
+    def manage_context_window(self, role: str, message: str):
+        """
+        Handles the context window by storing message in database and refreshing context.
+        The context window is always loaded from the database to ensure consistency.
+        Only user and assistant messages are included in the context window.
+        Assistant reasoning messages are stored but not included in the context.
+        """
+        # Store the new message if it's a valid role
+        if role in ['user', 'assistant', 'system', 'assistant-reasoning']:
+            self.db_storage.insert_single_message(
+                self.conversation_id,
+                role,
+                message,
+                len(self.tokenizer.encode(message))  # Get token count
+            )
+
+            # Only refresh context window for messages that should be in it
+            if role in ['user', 'assistant', 'system']:
+                self.context_window = self.db_storage.get_context_window_messages(
+                    self.conversation_id,
+                    self.context_window_len
+                )
+        else:
+            logger.warning(f"Invalid message role: {role}")
+
+        return None
 
     def _parse_llm_response(self, model_outputs, model_inputs):
         """
-            Parses the raw llm output to extract vectors, then decodes generated text. 
-            Only reasoning token is treated currently.
-            Saves llm output and token counts to database.
+        Parses the raw llm output to extract vectors, then decodes generated text. 
+        Only reasoning token is treated currently.
+        Saves llm output and token counts to database.
         """
-
         llm_output = model_outputs[0][len(model_inputs.input_ids[0]):].tolist()
 
         try:
@@ -85,7 +114,6 @@ class ConversationHandler:
             index = 0
 
         if index != 0:
-
             llm_output_think = llm_output[:index]
             llm_output_content = llm_output[index:]
 
@@ -95,32 +123,15 @@ class ConversationHandler:
             thinking_content = self.tokenizer.decode(llm_output_think, skip_special_tokens=True).strip("\n")
             content = self.tokenizer.decode(llm_output_content, skip_special_tokens=True).strip("\n")
 
-            self.db_storage.insert_single_message(
-                                                self.conversation_id,
-                                                self.context_window[-1]['role'],
-                                                self.context_window[-1]['content'], 
-                                                model_inputs["input_ids"][0].size(0),
-                                                )
-            self.db_storage.insert_single_message(
-                                                self.conversation_id,
-                                                "assistant-reasoning", 
-                                                thinking_content, 
-                                                len(llm_output_think)
-                                                )
-            self.db_storage.insert_single_message(
-                                                self.conversation_id,
-                                                "assistant", 
-                                                content, 
-                                                len(llm_output_content)
-                                                )
-  
+            # Store messages in a consistent order - first reasoning, then response
+            if thinking_content:
+                self.manage_context_window("assistant-reasoning", thinking_content)
+            self.manage_context_window("assistant", content)
+
         else:
-            
-            thinking_content = "None"
+            thinking_content = None
             content = self.tokenizer.decode(llm_output, skip_special_tokens=True).strip("\n")
-
-            self.db_storage.insert_single_message("assistant", content, len(llm_output_content))
-
+            self.manage_context_window("assistant", content)
 
         return content, thinking_content
 
@@ -156,26 +167,3 @@ class ConversationHandler:
         self.db_storage.update_message_count(self.conversation_id)
         
         return llm_answer, llm_thinking
-
-    def manage_context_window(self, role: str, message: str):
-        """
-            Handles the context window according to init size.
-        """
-
-        formatter = {
-            "role":role,
-            "content":message 
-        }
-
-        system_prompt = self.context_window[0] if self.context_window and self.context_window[0]["role"] == "system" else None
-
-        if system_prompt and len(self.context_window) > self.context_window_len:
-            self.context_window.pop(1)
-            self.context_window.append(formatter)
-        elif len(self.context_window) >= self.context_window_len:
-            self.context_window.pop(0)
-            self.context_window.append(formatter)
-        else:
-            self.context_window.append(formatter)
-
-        return None

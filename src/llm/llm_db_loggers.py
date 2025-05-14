@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from src.db.db_config import get_engine, metadata
 from src.db.db_init import DatabaseInitializer
 from src.db.db_models import conversations_table, messages_table
+from src.db.db_utils import DatabaseInputValidator
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class DatabaseStorage:
             self.engine = get_engine()
             self.metadata = metadata
             self.db_schema = self.metadata.schema
+            self.validator = DatabaseInputValidator()
 
             # Initialize table references directly from imported models
             self.conversations_table = conversations_table
@@ -63,13 +65,18 @@ class DatabaseStorage:
         Returns:
             bool: True if the conversation exists, False otherwise.
         """
-        select_stmt = select(self.conversations_table).where(
-            self.conversations_table.c.id == conversation_id
-        )
+        try:
+            validated_id = self.validator.validate_id(conversation_id)
+            select_stmt = select(self.conversations_table).where(
+                self.conversations_table.c.id == validated_id
+            )
 
-        with self.get_connection() as conn:
-            result = conn.execute(select_stmt)
-            return result.first() is not None
+            with self.get_connection() as conn:
+                result = conn.execute(select_stmt)
+                return result.first() is not None
+        except ValueError as e:
+            logger.error(f"Invalid conversation ID: {str(e)}")
+            return False
 
     def insert_single_message(self, conversation_id: int, role: str, message: str, token_count: int):
         """
@@ -80,16 +87,31 @@ class DatabaseStorage:
             role: The role of the message sender
             message: The message content
             token_count: The total token count for this message
+            
+        Raises:
+            ValueError: If any input validation fails
+            SQLAlchemyError: If database operation fails
         """
-        insert_stmt = self.messages_table.insert().values(
-            conversation_id=conversation_id,
-            role=role,
-            message=message,
-            total_token_count=token_count,
-        )
+        try:
+            # Validate all inputs
+            validated_id = self.validator.validate_id(conversation_id)
+            validated_role = self.validator.validate_role(role)
+            validated_message = self.validator.sanitize_string(message, max_length=8092)  # No limit for message content
+            validated_count = self.validator.validate_token_count(token_count)
 
-        with self.get_connection() as conn:
-            conn.execute(insert_stmt)
+            insert_stmt = self.messages_table.insert().values(
+                conversation_id=validated_id,
+                role=validated_role,
+                message=validated_message,
+                total_token_count=validated_count,
+            )
+
+            with self.get_connection() as conn:
+                conn.execute(insert_stmt)
+                
+        except (ValueError, SQLAlchemyError) as e:
+            logger.error(f"Failed to insert message: {str(e)}")
+            raise
 
     def insert_single_conversation(self, conversation_id: int, message_count: int = 0, title: str = "", title_embedding: list[float] = None):
         """
@@ -100,16 +122,31 @@ class DatabaseStorage:
             message_count: Initial message count
             title: The title of the conversation
             title_embedding: Vector embedding for the title
+            
+        Raises:
+            ValueError: If any input validation fails
+            SQLAlchemyError: If database operation fails
         """
-        insert_stmt = self.conversations_table.insert().values(
-            id=conversation_id,
-            message_count=message_count,
-            title=title,
-            title_embedding=title_embedding,
-        )
+        try:
+            # Validate all inputs
+            validated_id = self.validator.validate_id(conversation_id)
+            validated_count = self.validator.validate_token_count(message_count)
+            validated_title = self.validator.sanitize_string(title)
+            validated_embedding = self.validator.validate_vector(title_embedding) if title_embedding else None
 
-        with self.get_connection() as conn:
-            conn.execute(insert_stmt)
+            insert_stmt = self.conversations_table.insert().values(
+                id=validated_id,
+                message_count=validated_count,
+                title=validated_title,
+                title_embedding=validated_embedding,
+            )
+
+            with self.get_connection() as conn:
+                conn.execute(insert_stmt)
+                
+        except (ValueError, SQLAlchemyError) as e:
+            logger.error(f"Failed to insert conversation: {str(e)}")
+            raise
 
     def update_message_count(self, conversation_id: int, new_messages: int = 1):
         """
@@ -117,12 +154,68 @@ class DatabaseStorage:
 
         Args:
             conversation_id: The ID of the conversation to update
+            new_messages: Number of new messages to add to count
+            
+        Raises:
+            ValueError: If any input validation fails
+            SQLAlchemyError: If database operation fails
         """
-        update_stmt = (
-            update(self.conversations_table)
-            .where(self.conversations_table.c.id == conversation_id)
-            .values(message_count=self.conversations_table.c.message_count + new_messages)
-        )
+        try:
+            # Validate inputs
+            validated_id = self.validator.validate_id(conversation_id)
+            validated_count = self.validator.validate_token_count(new_messages)
 
-        with self.get_connection() as conn:
-            conn.execute(update_stmt)
+            update_stmt = (
+                update(self.conversations_table)
+                .where(self.conversations_table.c.id == validated_id)
+                .values(message_count=self.conversations_table.c.message_count + validated_count)
+            )
+
+            with self.get_connection() as conn:
+                conn.execute(update_stmt)
+                
+        except (ValueError, SQLAlchemyError) as e:
+            logger.error(f"Failed to update message count: {str(e)}")
+            raise
+
+    def get_context_window_messages(self, conversation_id: int, window_size: int) -> list[dict]:
+        """
+        Fetch the most recent messages for the context window.
+        Only includes messages with roles 'user' and 'assistant' for the LLM context.
+
+        Args:
+            conversation_id: The ID of the conversation
+            window_size: Number of messages to fetch for context window
+            
+        Returns:
+            list[dict]: List of messages in the format {"role": str, "content": str}
+            
+        Raises:
+            ValueError: If any input validation fails
+            SQLAlchemyError: If database operation fails
+        """
+        try:
+            validated_id = self.validator.validate_id(conversation_id)
+            validated_size = self.validator.validate_token_count(window_size)  # Reusing token count validator as it fits
+
+            # Query to get the most recent messages, excluding assistant-reasoning
+            select_stmt = (
+                select(self.messages_table.c.role, self.messages_table.c.message)
+                .where(
+                    (self.messages_table.c.conversation_id == validated_id) &
+                    (self.messages_table.c.role.in_(['user', 'assistant', 'system']))  # Include system messages too
+                )
+                .order_by(self.messages_table.c.timestamp.desc())
+                .limit(validated_size)
+            )
+
+            with self.get_connection() as conn:
+                result = conn.execute(select_stmt)
+                # Convert to list and reverse to get chronological order
+                messages = [{"role": row.role, "content": row.message} for row in result]
+                messages.reverse()
+                return messages
+                
+        except (ValueError, SQLAlchemyError) as e:
+            logger.error(f"Failed to fetch context window messages: {str(e)}")
+            raise
