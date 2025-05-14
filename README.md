@@ -18,11 +18,11 @@ A sophisticated terminal-based chat interface for interacting with Large Languag
 - PostgreSQL with pgvector extension
 - Conda (for environment setup)
 
-## Installation
+## Quick Start Guide
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/alexandria.git
+git clone https://github.com/kavalcanti/alexandria.git
 cd alexandria
 ```
 
@@ -38,15 +38,7 @@ pip install uv
 uv pip install -r requirements.txt
 ```
 
-4. Set up PostgreSQL:
-   - Install PostgreSQL
-   - Install pgvector extension:
-     ```sql
-     CREATE EXTENSION vector;
-     ```
-   - Create a database for Alexandria
-
-5. Configure environment variables:
+4. Configure environment:
 ```bash
 cp .env.example .env
 ```
@@ -61,19 +53,19 @@ HF_MODEL=Qwen/Qwen3-0.6B
 LOGFILE=alexandria.log
 ```
 
-## Usage
-
-1. Start the application:
+5. Start Alexandria:
 ```bash
 ./alexandria.sh
 ```
 
-2. Key Controls:
-   - `Ctrl+Space`: Send message
-   - `Ctrl+Q`: Quit application
-   - `Ctrl+Up/Down`: Scroll chat history
-   - `Shift+Up/Down`: Scroll thinking window
-   - `Ctrl+O`: Reset conversation handler
+## Documentation
+
+Our documentation is organized in the `docs` folder:
+
+- [User Guide](docs/UserGuide.md) - Detailed usage instructions and keyboard shortcuts
+- [Contributing Guide](docs/CONTRIBUTING.md) - Guidelines for contributors
+- [License](docs/LICENSE.md) - MIT License
+- [TODOs](docs/TODOs.md) - Current development status and planned features
 
 ## Project Structure
 
@@ -85,27 +77,30 @@ alexandria/
 │   ├── db_models.py      # Database schema and models
 │   ├── llm_db_loggers.py # Database operations
 │   └── logger.py         # Logging utilities
-├── main.py              # Application entry point
-├── alexandria.sh        # Launch script
-├── requirements.txt     # Project dependencies
-└── README.md           # This file
+├── docs/                # Documentation
+│   ├── UserGuide.md     # User manual
+│   ├── CONTRIBUTING.md  # Contribution guidelines
+│   ├── LICENSE.md      # MIT License
+│   └── TODOs.md        # Development roadmap
+├── main.py             # Application entry point
+├── alexandria.sh       # Launch script
+└── requirements.txt    # Project dependencies
 ```
 
-## Technical Details
+## Technical Stack
 
-- **LLM Integration**: Uses Hugging Face transformers, defaulting to Qwen3-0.6B model
-- **Database**: PostgreSQL with pgvector for vector embeddings
-- **UI Framework**: Built with prompt_toolkit for terminal interface
-- **Context Management**: Configurable sliding window for conversation history
-- **Model Caching**: Local storage of downloaded models for improved performance
+- **LLM**: Hugging Face transformers (default: Qwen3-0.6B)
+- **Database**: PostgreSQL with pgvector
+- **UI**: prompt_toolkit
+- **Vector Search**: pgvector
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
 
 ## License
 
-[Add your chosen license here]
+This project is licensed under the MIT License - see the [LICENSE](docs/LICENSE.md) file for details.
 
 ## Acknowledgments
 

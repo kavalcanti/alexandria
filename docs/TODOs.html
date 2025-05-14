@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>LLM Response Parsing</title>
+            <style>
+/* From extension vscode.github */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+.vscode-dark img[src$=\#gh-light-mode-only],
+.vscode-light img[src$=\#gh-dark-mode-only],
+.vscode-high-contrast:not(.vscode-high-contrast-light) img[src$=\#gh-light-mode-only],
+.vscode-high-contrast-light img[src$=\#gh-dark-mode-only] {
+	display: none;
+}
+
+</style>
+            
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/markdown.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/Microsoft/vscode/extensions/markdown-language-features/media/highlight.css">
+<style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe WPC', 'Segoe UI', system-ui, 'Ubuntu', 'Droid Sans', sans-serif;
+                font-size: 14px;
+                line-height: 1.6;
+            }
+        </style>
+        <style>
+.task-list-item {
+    list-style-type: none;
+}
+
+.task-list-item-checkbox {
+    margin-left: -20px;
+    vertical-align: middle;
+    pointer-events: none;
+}
+</style>
+<style>
+:root {
+  --color-note: #0969da;
+  --color-tip: #1a7f37;
+  --color-warning: #9a6700;
+  --color-severe: #bc4c00;
+  --color-caution: #d1242f;
+  --color-important: #8250df;
+}
+
+</style>
+<style>
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-note: #2f81f7;
+    --color-tip: #3fb950;
+    --color-warning: #d29922;
+    --color-severe: #db6d28;
+    --color-caution: #f85149;
+    --color-important: #a371f7;
+  }
+}
+
+</style>
+<style>
+.markdown-alert {
+  padding: 0.5rem 1rem;
+  margin-bottom: 16px;
+  color: inherit;
+  border-left: .25em solid #888;
+}
+
+.markdown-alert>:first-child {
+  margin-top: 0
+}
+
+.markdown-alert>:last-child {
+  margin-bottom: 0
+}
+
+.markdown-alert .markdown-alert-title {
+  display: flex;
+  font-weight: 500;
+  align-items: center;
+  line-height: 1
+}
+
+.markdown-alert .markdown-alert-title .octicon {
+  margin-right: 0.5rem;
+  display: inline-block;
+  overflow: visible !important;
+  vertical-align: text-bottom;
+  fill: currentColor;
+}
+
+.markdown-alert.markdown-alert-note {
+  border-left-color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+  color: var(--color-note);
+}
+
+.markdown-alert.markdown-alert-important {
+  border-left-color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+  color: var(--color-important);
+}
+
+.markdown-alert.markdown-alert-warning {
+  border-left-color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+  color: var(--color-warning);
+}
+
+.markdown-alert.markdown-alert-tip {
+  border-left-color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+  color: var(--color-tip);
+}
+
+.markdown-alert.markdown-alert-caution {
+  border-left-color: var(--color-caution);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+  color: var(--color-caution);
+}
+
+</style>
+        
+        </head>
+        <body class="vscode-body vscode-light">
+            <h2 id="-completed">✅ COMPLETED</h2>
+<h3 id="llm-response-parsing">LLM Response Parsing</h3>
+<ul>
+<li>Parse <think> tag</li>
+<li>Token count extraction</li>
+<li>Message persistence</li>
+</ul>
+<h3 id="ui-core-features">UI Core Features</h3>
+<ul>
+<li>Split-pane design</li>
+<li>Chat window bottom tracking</li>
+<li>Prompt toolkit integration</li>
+<li>Keyboard shortcuts</li>
+<li>Scrolling functionality</li>
+</ul>
+<h3 id="database-integration">Database Integration</h3>
+<ul>
+<li>Basic schema setup</li>
+<li>Message storage</li>
+<li>Conversation tracking</li>
+<li>Input validation</li>
+<li>Vector support setup</li>
+</ul>
+<h2 id="-in-progress">🚧 IN PROGRESS</h2>
+<h3 id="ui-enhancements">UI Enhancements</h3>
+<ul>
+<li>Side panel chat selection
+<ul>
+<li>Title generation integration</li>
+<li>Message/token count display</li>
+<li>Chat list navigation</li>
+</ul>
+</li>
+</ul>
+<h3 id="database-expansion">Database Expansion</h3>
+<ul>
+<li>Embeddings table for local docs</li>
+<li>Title generation system
+<ul>
+<li>Based on first 2 exchanges</li>
+<li>Auto-updating mechanism</li>
+</ul>
+</li>
+<li>Message count analytics
+<ul>
+<li>Cumulative statistics</li>
+<li>Token usage tracking</li>
+</ul>
+</li>
+</ul>
+<h3 id="llm-features">LLM Features</h3>
+<ul>
+<li>Advanced chaining capabilities</li>
+<li>Vector query builder
+<ul>
+<li>Semantic search integration</li>
+<li>Relevance scoring</li>
+</ul>
+</li>
+<li>Agentic capabilities
+<ul>
+<li>Search planning</li>
+<li>Web search integration</li>
+<li>Multi-step reasoning</li>
+</ul>
+</li>
+</ul>
+<h3 id="rag-integration">RAG Integration</h3>
+<ul>
+<li>Wikipedia dataset integration</li>
+<li>PGVector optimization
+<ul>
+<li>Embedding generation pipeline</li>
+<li>Retrieval mechanism tuning</li>
+<li>Relevance threshold calibration</li>
+</ul>
+</li>
+</ul>
+<h3 id="performance-optimization">Performance Optimization</h3>
+<ul>
+<li>Model caching strategy</li>
+<li>Database query optimization</li>
+<li>UI responsiveness improvements</li>
+</ul>
+<h3 id="testing--documentation">Testing &amp; Documentation</h3>
+<ul>
+<li>Unit test coverage</li>
+<li>Integration tests</li>
+<li>API documentation</li>
+<li>User guide updates</li>
+</ul>
+
+            
+            
+        </body>
+        </html>
