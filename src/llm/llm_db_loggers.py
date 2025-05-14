@@ -181,14 +181,15 @@ class DatabaseStorage:
     def get_context_window_messages(self, conversation_id: int, window_size: int) -> list[dict]:
         """
         Fetch the most recent messages for the context window.
-        Only includes messages with roles 'user' and 'assistant' for the LLM context.
+        Only includes messages with roles 'user', 'assistant', and 'system' for the LLM context.
+        Messages are ordered by timestamp to maintain conversation sequence.
 
         Args:
             conversation_id: The ID of the conversation
             window_size: Number of messages to fetch for context window
             
         Returns:
-            list[dict]: List of messages in the format {"role": str, "content": str}
+            list[dict]: List of messages in the format {"role": str, "content": str, "timestamp": datetime}
             
         Raises:
             ValueError: If any input validation fails
@@ -196,14 +197,18 @@ class DatabaseStorage:
         """
         try:
             validated_id = self.validator.validate_id(conversation_id)
-            validated_size = self.validator.validate_token_count(window_size)  # Reusing token count validator as it fits
+            validated_size = self.validator.validate_token_count(window_size)
 
-            # Query to get the most recent messages, excluding assistant-reasoning
+            # Query to get messages ordered by timestamp
             select_stmt = (
-                select(self.messages_table.c.role, self.messages_table.c.message)
+                select(
+                    self.messages_table.c.role,
+                    self.messages_table.c.message,
+                    self.messages_table.c.timestamp
+                )
                 .where(
-                    (self.messages_table.c.conversation_id == validated_id) &
-                    (self.messages_table.c.role.in_(['user', 'assistant', 'system']))  # Include system messages too
+                    self.messages_table.c.conversation_id == validated_id,
+                    self.messages_table.c.role.in_(['user', 'assistant', 'system', 'assistant-reasoning'])
                 )
                 .order_by(self.messages_table.c.timestamp.desc())
                 .limit(validated_size)
@@ -211,11 +216,19 @@ class DatabaseStorage:
 
             with self.get_connection() as conn:
                 result = conn.execute(select_stmt)
-                # Convert to list and reverse to get chronological order
-                messages = [{"role": row.role, "content": row.message} for row in result]
+                messages = [
+                    {
+                        'role': row.role,
+                        'content': row.message,
+                        'timestamp': row.timestamp
+                    }
+                    for row in result
+                ]
+
+                # Reverse the list to get chronological order
                 messages.reverse()
                 return messages
-                
+
         except (ValueError, SQLAlchemyError) as e:
             logger.error(f"Failed to fetch context window messages: {str(e)}")
             raise

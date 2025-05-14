@@ -8,7 +8,7 @@ from src.llm.llm_db_loggers import *
 logger = logging.getLogger(__name__)
 
 class ConversationHandler:
-    def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5):
+    def __init__(self, llm_name: str = "Qwen/Qwen3-0.6B", context_window_len: int = 5, load_latest_system: bool = True):
         """
             Conversation instance class. Will keep its context window according to set lenght.
             Initializes its DatabaseStorage and keeps a log of messages.
@@ -17,6 +17,7 @@ class ConversationHandler:
             Params:
             llm_name: str HF LLM name. Defaults to Qwen3 0.6B
             context_window_len: int number of messages to keep in context window, including system message.
+            load_latest_system: bool whether to load only the latest system message (True) or all system messages (False)
         """
 
         # Initialize directories
@@ -33,17 +34,15 @@ class ConversationHandler:
         self.context_window_len = context_window_len
         self.db_storage = DatabaseStorage()
 
-        # TODO Initialize conversation
+        # Initialize conversation
         self.conversation_id = 1
+        self.load_latest_system = load_latest_system
 
         if not self.db_storage.conversation_exists(self.conversation_id):
             self.db_storage.insert_single_conversation(self.conversation_id)
 
         # Load initial context window from database
-        self.context_window = self.db_storage.get_context_window_messages(
-            self.conversation_id, 
-            self.context_window_len
-        )
+        self.context_window = self._load_context_window()
 
         return None
 
@@ -72,6 +71,35 @@ class ConversationHandler:
 
         return tokenizer, model
 
+    def _load_context_window(self):
+        """
+        Load context window from database with proper message ordering and system message handling.
+        Returns a list of message dictionaries in the correct sequence.
+        """
+        # Get messages from database
+        messages = self.db_storage.get_context_window_messages(
+            self.conversation_id,
+            self.context_window_len
+        )
+
+        # If we should only load the latest system message
+        if self.load_latest_system:
+            # Filter system messages
+            system_messages = [msg for msg in messages if msg['role'] == 'system']
+            non_system_messages = [msg for msg in messages if msg['role'] != 'system']
+            
+            # Only keep the latest system message if any exist
+            if system_messages:
+                latest_system = system_messages[-1]
+                messages = [latest_system] + non_system_messages
+            else:
+                messages = non_system_messages
+
+        # Ensure messages are in chronological order
+        messages.sort(key=lambda x: x.get('timestamp', 0))
+        
+        return messages
+
     def manage_context_window(self, role: str, message: str):
         """
         Handles the context window by storing message in database and refreshing context.
@@ -90,10 +118,7 @@ class ConversationHandler:
 
             # Only refresh context window for messages that should be in it
             if role in ['user', 'assistant', 'system']:
-                self.context_window = self.db_storage.get_context_window_messages(
-                    self.conversation_id,
-                    self.context_window_len
-                )
+                self.context_window = self._load_context_window()
         else:
             logger.warning(f"Invalid message role: {role}")
 

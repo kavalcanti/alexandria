@@ -1,7 +1,7 @@
 """
 UI state management and context window integration.
 """
-from typing import Optional
+from typing import Optional, List, Dict
 from prompt_toolkit.layout.controls import FormattedTextControl
 from src.llm.conversation import ConversationHandler
 
@@ -28,6 +28,52 @@ class StateManager:
         self.chat_control.text = ""
         self.thinking_control.text = ""
         
+        # Load initial conversation state
+        self._load_initial_conversation()
+        
+    def _format_message(self, role: str, content: str) -> str:
+        """
+        Format a message for display in the UI.
+        
+        Args:
+            role: Message role ('user', 'assistant', 'system')
+            content: Message content
+            
+        Returns:
+            Formatted message string
+        """
+        role_display = {
+            'user': 'You',
+            'assistant': 'LLM',
+            'system': 'System',
+            'assistant-reasoning': 'Thoughts'
+        }
+        
+        display_role = role_display.get(role, role.title())
+        return f"{display_role}:\n{content}\n"
+    
+    def _load_initial_conversation(self) -> None:
+        """
+        Load the current conversation from the context window into the UI.
+        Formats and displays all messages in the proper sequence.
+        """
+        chat_text = []
+        thinking_text = []
+        
+        # Get messages from context window
+        for message in self.handler.context_window:
+            role = message.get('role')
+            content = message.get('content', '')
+            
+            if role == 'assistant-reasoning':
+                thinking_text.append(self._format_message(role, content))
+            else:
+                chat_text.append(self._format_message(role, content))
+        
+        # Update UI controls
+        self.chat_control.text = ''.join(chat_text)
+        self.thinking_control.text = ''.join(thinking_text)
+        
     def append_user_message(self, message: str) -> None:
         """
         Append a user message to both UI and context window.
@@ -35,7 +81,8 @@ class StateManager:
         Args:
             message: The user's message
         """
-        self.chat_control.text = self.chat_control.text + f"You:\n{message}\n"
+        formatted_message = self._format_message('user', message)
+        self.chat_control.text = self.chat_control.text + formatted_message
         self.handler.manage_context_window("user", message)
         
     def append_assistant_message(self, message: str, thinking: Optional[str] = None) -> None:
@@ -47,9 +94,12 @@ class StateManager:
             message: The assistant's response
             thinking: Optional thinking/reasoning process
         """
-        self.chat_control.text = self.chat_control.text + f"LLM:\n{message}\n"
+        formatted_message = self._format_message('assistant', message)
+        self.chat_control.text = self.chat_control.text + formatted_message
+        
         if thinking:
-            self.thinking_control.text = self.thinking_control.text + f"Thoughts:\n{thinking}\n"
+            formatted_thinking = self._format_message('assistant-reasoning', thinking)
+            self.thinking_control.text = self.thinking_control.text + formatted_thinking
         
     def reset_state(self) -> None:
         """Reset both UI controls and create a new handler instance."""
