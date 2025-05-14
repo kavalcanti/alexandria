@@ -7,6 +7,7 @@ import re
 from prompt_toolkit.application import get_app
 from prompt_toolkit.key_binding import KeyBindings
 from src.llm.conversation import ConversationHandler
+from src.ui.state_manager import StateManager
 
 def create_keybindings(
     msg_buffer,
@@ -35,6 +36,9 @@ def create_keybindings(
         KeyBindings object with all necessary bindings
     """
     kb = KeyBindings()
+    
+    # Initialize state manager
+    state_manager = StateManager(chat_formatted_text, thinking_formatted_text, handler)
 
     @kb.add('c-q')
     def _(event):
@@ -51,7 +55,7 @@ def create_keybindings(
     def _(event):
         """Scroll chat window down by one line."""
         # Count both spaces and newlines as line indicators
-        chat_text = len(re.findall(r'[\s\n]', chat_formatted_text.text))
+        chat_text = len(re.findall(r'[\s\n]', state_manager.get_chat_text()))
         # Use a conservative estimate
         max_scroll = chat_text/8 if chat_text else 0
         chat_window.vertical_scroll = min(chat_window.vertical_scroll + 1, int(max_scroll))
@@ -67,7 +71,7 @@ def create_keybindings(
     def _(event):
         """Scroll thinking window down by one line."""
         # Count both spaces and newlines as line indicators
-        thinking_text = len(re.findall(r'[\s\n]', thinking_formatted_text.text))
+        thinking_text = len(re.findall(r'[\s\n]', state_manager.get_thinking_text()))
         # Use a conservative estimate
         max_scroll = thinking_text/8 if thinking_text else 0
         thinking_window.vertical_scroll = min(thinking_window.vertical_scroll + 1, int(max_scroll))
@@ -75,16 +79,8 @@ def create_keybindings(
 
     @kb.add('c-o')
     def _(event):
-        """Reset conversation handler."""
-        nonlocal handler  # Use nonlocal to modify the handler parameter
-        chat_formatted_text.text = "Generating new handler instance..."
-        thinking_formatted_text.text = "Generating new handler instance..."
-        get_app().invalidate()
-
-        handler = ConversationHandler(os.getenv('HF_MODEL'))
-
-        chat_formatted_text.text = ""
-        thinking_formatted_text.text = ""
+        """Reset conversation handler and UI state."""
+        state_manager.reset_state()
         get_app().invalidate()
 
     @kb.add('c-space')
@@ -97,23 +93,14 @@ def create_keybindings(
             app.layout.focus(chat_formatted_text)
             msg_buffer.text = "AI is busy."
 
-            current_chat_text = chat_formatted_text.text
-            chat_formatted_text.text = current_chat_text + f"You:\n{user_input}\n"
+            # Add user message to UI and context
+            state_manager.append_user_message(user_input)
             app.invalidate()
 
-            handler.manage_context_window("user", user_input)
-
+            # Generate and add AI response
             ai_answer, ai_thinking = await asyncio.to_thread(handler.generate_chat_response)
-            
-            current_chat_text = chat_formatted_text.text
-            chat_formatted_text.text = current_chat_text + f"LLM:\n{ai_answer}\n"
-
-            current_thinking_text = thinking_formatted_text.text
-            thinking_formatted_text.text = current_thinking_text + f"Thoughts:\n{ai_thinking}\n"
-
+            state_manager.append_assistant_message(ai_answer, ai_thinking)
             app.invalidate()
-
-            handler.manage_context_window("assistant", ai_answer)
             
             msg_buffer.text = ""
             app.layout.focus(msg_window)

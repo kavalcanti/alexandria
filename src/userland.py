@@ -11,6 +11,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from src.llm.conversation import ConversationHandler
 from src.ui.layout import create_layout_components
 from src.ui.keybindings import create_keybindings
+from src.ui.state_manager import StateManager
 
 load_dotenv()
 
