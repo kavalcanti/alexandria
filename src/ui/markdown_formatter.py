@@ -7,11 +7,7 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name, TextLexer
 from pygments.formatters import Terminal256Formatter
 from pygments.util import ClassNotFound
-import logging
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 FormattedText = List[Tuple[str, str]]
 
@@ -28,12 +24,7 @@ class MarkdownFormatter:
         tokens = self.md.parse(markdown_text)
         self._current_style = []  # Reset style stack
         
-        # Debug: print tokens
-        logger.debug(f"Markdown text: {markdown_text}")
-        logger.debug(f"Generated tokens: {[t.type for t in tokens]}")
-        
         result = self._process_tokens(tokens)
-        logger.debug(f"Formatted text: {result}")
         return result
     
     def _get_current_style(self) -> str:
@@ -46,7 +37,6 @@ class MarkdownFormatter:
         in_paragraph = False
         
         for token in tokens:
-            logger.debug(f"Processing token: {token.type} - {token.content if hasattr(token, 'content') else ''}")
             
             style = self._get_current_style()
             
@@ -112,8 +102,6 @@ class MarkdownFormatter:
             elif token.type == 'hardbreak':
                 formatted_text.append(('', '\n\n'))
             
-            logger.debug(f"Current style stack: {self._current_style}")
-            logger.debug(f"Formatted text so far: {formatted_text}")
         
         return formatted_text
     
