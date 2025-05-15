@@ -54,13 +54,13 @@ class StateManager:
         }
         
         display_role = role_display.get(role, role.title())
-        header = [("class:role", f"{display_role}:\n")]
+        header = [("class:role", f"{display_role}:\n\n")]
         
         # Convert content to formatted text with Markdown support
         formatted_content = self.markdown_formatter.convert_to_formatted_text(content)
         
         # Add spacing after message
-        footer = [("", "\n\n")]
+        footer = [("", "\n")]
         
         return header + formatted_content + footer
     
