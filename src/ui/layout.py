@@ -31,7 +31,9 @@ def create_layout_components():
     )
 
     thinking_content = Window(thinking_formatted_text, wrap_lines=True, ignore_content_width=True)
-    thinking_window = ScrollablePane(content=thinking_content)
+    thinking_window = ScrollablePane(
+        content=thinking_content
+    )
 
     # Status bars
     top_bar_text = [

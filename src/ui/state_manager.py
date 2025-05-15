@@ -50,18 +50,18 @@ class StateManager:
         }
         
         display_role = role_display.get(role, role.title())
-        return f"{display_role}:\n{content}\n"
+        return f"{display_role}:\n{content}\n\n"
     
     def _load_initial_conversation(self) -> None:
         """
         Load the current conversation from the context window into the UI.
-        Formats and displays all messages in the proper sequence.
+        Formats and displays all messages in reverse chronological order.
         """
         chat_text = []
         thinking_text = []
         
-        # Get messages from context window
-        for message in self.handler.context_window:
+        # Get messages from context window in reverse order
+        for message in reversed(self.handler.context_window):
             role = message.get('role')
             content = message.get('content', '')
             
@@ -70,7 +70,7 @@ class StateManager:
             else:
                 chat_text.append(self._format_message(role, content))
         
-        # Update UI controls
+        # Update UI controls with messages in reverse chronological order
         self.chat_control.text = ''.join(chat_text)
         self.thinking_control.text = ''.join(thinking_text)
         
@@ -82,7 +82,7 @@ class StateManager:
             message: The user's message
         """
         formatted_message = self._format_message('user', message)
-        self.chat_control.text = self.chat_control.text + formatted_message
+        self.chat_control.text = formatted_message + self.chat_control.text
         self.handler.manage_context_window("user", message)
         
     def append_assistant_message(self, message: str, thinking: Optional[str] = None) -> None:
@@ -95,11 +95,11 @@ class StateManager:
             thinking: Optional thinking/reasoning process
         """
         formatted_message = self._format_message('assistant', message)
-        self.chat_control.text = self.chat_control.text + formatted_message
+        self.chat_control.text = formatted_message + self.chat_control.text
         
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
-            self.thinking_control.text = self.thinking_control.text + formatted_thinking
+            self.thinking_control.text = formatted_thinking + self.thinking_control.text
         
     def reset_state(self) -> None:
         """Reset both UI controls and create a new handler instance."""
