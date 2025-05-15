@@ -59,19 +59,19 @@ class ConversationHandler:
             A cache wipe will be implemented soon, hence offloading the model after download.
         """
 
-        if len(os.listdir(self.local_llm_dir)) == 0:
+        # if len(os.listdir(self.local_llm_dir)) == 0:
             
-            if not os.path.exists(self.local_llm_dir):
-                os.makedirs(self.local_llm_dir)
-            
-            tokenizer = AutoTokenizer.from_pretrained(self.llm_name, cache_dir=self.llm_download_cache_dir)
-            model = AutoModelForCausalLM.from_pretrained(self.llm_name, torch_dtype="auto", device_map="auto", cache_dir=self.llm_download_cache_dir)
+        if not os.path.exists(self.local_llm_dir):
+            os.makedirs(self.local_llm_dir)
+        
+        tokenizer = AutoTokenizer.from_pretrained(self.llm_name, cache_dir=self.llm_download_cache_dir)
+        model = AutoModelForCausalLM.from_pretrained(self.llm_name, torch_dtype="auto", device_map="auto", cache_dir=self.llm_download_cache_dir)
 
-            model.save_pretrained(self.local_llm_dir)
-            tokenizer.save_pretrained(self.local_llm_dir)
+        model.save_pretrained(self.local_llm_dir)
+        tokenizer.save_pretrained(self.local_llm_dir)
 
-            tokenizer = None
-            model = None
+        tokenizer = None
+        model = None
 
         tokenizer = AutoTokenizer.from_pretrained(self.local_llm_dir)
         model = AutoModelForCausalLM.from_pretrained(self.local_llm_dir, torch_dtype="auto", device_map="auto")
