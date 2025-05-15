@@ -88,19 +88,23 @@ Our documentation is organized in the `docs` folder:
 ```
 alexandria/
 ├── src/
-│   ├── userland.py       # TUI implementation
-│   ├── conversation.py   # LLM interaction handling
-│   ├── db_models.py      # Database schema and models
-│   ├── llm_db_loggers.py # Database operations
-│   └── logger.py         # Logging utilities
-├── docs/                # Documentation
-│   ├── UserGuide.md     # User manual
-│   ├── CONTRIBUTING.md  # Contribution guidelines
+│   ├── llm/            # LLM integration and processing
+│   ├── ui/             # User interface components
+│   ├── db/             # Database operations and models
+│   └── userland.py     # Core application logic
+├── docs/               # Documentation
+│   ├── UserGuide.md    # User manual
+│   ├── CONTRIBUTING.md # Contribution guidelines
 │   ├── LICENSE.md      # MIT License
-│   └── TODOs.md        # Development roadmap
-├── main.py             # Application entry point
-├── alexandria.sh       # Launch script
-└── requirements.txt    # Project dependencies
+│   └── TODOs.md       # Development roadmap
+├── conf/               # Configuration files
+├── ai_models/          # Local model storage
+├── datasets/           # Dataset storage
+├── main.py            # Application entry point
+├── alexandria.sh      # Launch script
+├── pyproject.toml     # Project metadata and configuration
+├── requirements.txt   # Project dependencies
+└── uv.lock           # Dependency lock file
 ```
 
 ## Technical Stack
