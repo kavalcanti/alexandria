@@ -6,6 +6,34 @@ from prompt_toolkit.layout import ScrollablePane
 from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.dimension import Dimension
+from prompt_toolkit.styles import Style
+
+def create_markdown_style() -> Style:
+    """Create style definitions for Markdown elements."""
+    return Style.from_dict({
+        # Headers
+        'heading-1': 'bold #0088ff',  # bright blue
+        'heading-2': 'bold #0066cc',  # medium blue
+        'heading-3': 'bold #00aaaa',  # cyan
+        'heading-4': 'underline #00aaaa',
+        'heading-5': 'italic #00aaaa',
+        'heading-6': '#00aaaa',
+        
+        # Code
+        'code-block': 'bg:#222222 #ffffff',
+        'code-inline': 'bg:#222222 #ffffff',
+        
+        # Text formatting
+        'bold': 'bold',
+        'italic': 'italic',
+        'list': '',
+        
+        # UI elements
+        'role': 'bold #00aa00',  # green
+        'title': 'reverse',
+        'line': '#666666',
+        'shortcut': 'bold #ffaa00',  # orange
+    })
 
 def create_layout_components():
     """
@@ -23,14 +51,24 @@ def create_layout_components():
     side_margin = Window(width=1)
     msg_window = Window(BufferControl(buffer=msg_buffer), height=5, wrap_lines=True)
     
-    chat_content = Window(chat_formatted_text, wrap_lines=True, ignore_content_width=True)
+    chat_content = Window(
+        chat_formatted_text,
+        wrap_lines=True,
+        ignore_content_width=True,
+        dont_extend_width=False
+    )
     chat_window = ScrollablePane(
         content=chat_content,
         keep_cursor_visible=True,
         keep_focused_window_visible=True
     )
 
-    thinking_content = Window(thinking_formatted_text, wrap_lines=True, ignore_content_width=True)
+    thinking_content = Window(
+        thinking_formatted_text,
+        wrap_lines=True,
+        ignore_content_width=True,
+        dont_extend_width=False
+    )
     thinking_window = ScrollablePane(
         content=thinking_content
     )
@@ -114,5 +152,6 @@ def create_layout_components():
         thinking_formatted_text,
         chat_window,
         thinking_window,
-        msg_window
+        msg_window,
+        create_markdown_style()  # Return the style object
     ) 

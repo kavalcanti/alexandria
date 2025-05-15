@@ -54,11 +54,7 @@ def create_keybindings(
     @kb.add('c-down')
     def _(event):
         """Scroll chat window down by one line."""
-        # Count both spaces and newlines as line indicators
-        chat_text = len(re.findall(r'[\s\n]', state_manager.get_chat_text()))
-        # Use a conservative estimate
-        max_scroll = chat_text/8 if chat_text else 0
-        chat_window.vertical_scroll = min(chat_window.vertical_scroll + 1, int(max_scroll))
+        chat_window.vertical_scroll = chat_window.vertical_scroll + 1
         event.app.invalidate()
 
     @kb.add('s-up')
@@ -70,11 +66,7 @@ def create_keybindings(
     @kb.add('s-down')
     def _(event):
         """Scroll thinking window down by one line."""
-        # Count both spaces and newlines as line indicators
-        thinking_text = len(re.findall(r'[\s\n]', state_manager.get_thinking_text()))
-        # Use a conservative estimate
-        max_scroll = thinking_text/8 if thinking_text else 0
-        thinking_window.vertical_scroll = min(thinking_window.vertical_scroll + 1, int(max_scroll))
+        thinking_window.vertical_scroll = thinking_window.vertical_scroll + 1
         event.app.invalidate()
 
     @kb.add('c-o')

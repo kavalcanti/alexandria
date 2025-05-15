@@ -1,9 +1,12 @@
 """
 UI state management and context window integration.
 """
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 from prompt_toolkit.layout.controls import FormattedTextControl
 from src.llm.conversation import ConversationHandler
+from src.ui.markdown_formatter import MarkdownFormatter
+
+FormattedText = List[Tuple[str, str]]
 
 class StateManager:
     def __init__(
@@ -23,24 +26,25 @@ class StateManager:
         self.chat_control = chat_control
         self.thinking_control = thinking_control
         self.handler = handler
+        self.markdown_formatter = MarkdownFormatter()
         
         # Initialize empty state
-        self.chat_control.text = ""
-        self.thinking_control.text = ""
+        self.chat_control.text = []
+        self.thinking_control.text = []
         
         # Load initial conversation state
         self._load_initial_conversation()
         
-    def _format_message(self, role: str, content: str) -> str:
+    def _format_message(self, role: str, content: str) -> FormattedText:
         """
-        Format a message for display in the UI.
+        Format a message for display in the UI with Markdown support.
         
         Args:
             role: Message role ('user', 'assistant', 'system')
             content: Message content
             
         Returns:
-            Formatted message string
+            Formatted message with Markdown rendering
         """
         role_display = {
             'user': 'You',
@@ -50,29 +54,38 @@ class StateManager:
         }
         
         display_role = role_display.get(role, role.title())
-        return f"{display_role}:\n{content}\n\n"
+        header = [("class:role", f"{display_role}:\n")]
+        
+        # Convert content to formatted text with Markdown support
+        formatted_content = self.markdown_formatter.convert_to_formatted_text(content)
+        
+        # Add spacing after message
+        footer = [("", "\n\n")]
+        
+        return header + formatted_content + footer
     
     def _load_initial_conversation(self) -> None:
         """
         Load the current conversation from the context window into the UI.
         Formats and displays all messages in reverse chronological order.
         """
-        chat_text = []
-        thinking_text = []
+        chat_text: FormattedText = []
+        thinking_text: FormattedText = []
         
         # Get messages from context window in reverse order
         for message in reversed(self.handler.context_window):
             role = message.get('role')
             content = message.get('content', '')
             
+            formatted_msg = self._format_message(role, content)
             if role == 'assistant-reasoning':
-                thinking_text.append(self._format_message(role, content))
+                thinking_text.extend(formatted_msg)
             else:
-                chat_text.append(self._format_message(role, content))
+                chat_text.extend(formatted_msg)
         
         # Update UI controls with messages in reverse chronological order
-        self.chat_control.text = ''.join(chat_text)
-        self.thinking_control.text = ''.join(thinking_text)
+        self.chat_control.text = chat_text
+        self.thinking_control.text = thinking_text
         
     def append_user_message(self, message: str) -> None:
         """
@@ -103,14 +116,14 @@ class StateManager:
         
     def reset_state(self) -> None:
         """Reset both UI controls and create a new handler instance."""
-        self.chat_control.text = ""
-        self.thinking_control.text = ""
+        self.chat_control.text = []
+        self.thinking_control.text = []
         self.handler = ConversationHandler()
         
-    def get_chat_text(self) -> str:
+    def get_chat_text(self) -> FormattedText:
         """Get current chat text."""
         return self.chat_control.text
         
-    def get_thinking_text(self) -> str:
+    def get_thinking_text(self) -> FormattedText:
         """Get current thinking text."""
         return self.thinking_control.text 

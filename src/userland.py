@@ -6,7 +6,6 @@ import os
 from dotenv import load_dotenv
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout.layout import Layout
-from prompt_toolkit.patch_stdout import patch_stdout
 
 from src.llm.conversation import ConversationHandler
 from src.ui.layout import create_layout_components
@@ -33,7 +32,8 @@ def create_application(conversation_id=None):
         thinking_formatted_text,
         chat_window,
         thinking_window,
-        msg_window
+        msg_window,
+        style
     ) = create_layout_components()
 
     # Create conversation handler with specified ID or default
@@ -48,6 +48,7 @@ def create_application(conversation_id=None):
         key_bindings=None,  # Will be set after creation
         mouse_support=True,
         full_screen=True,
+        style=style,  # Add the style
     )
 
     # Create keybindings with application instance
