@@ -12,11 +12,11 @@ def create_markdown_style() -> Style:
     """Create style definitions for Markdown elements."""
     return Style.from_dict({
         # Headers
-        'heading-1': 'bold #0088ff',  # bright blue
-        'heading-2': 'bold #0066cc',  # medium blue
-        'heading-3': 'bold #00aaaa',  # cyan
-        'heading-4': 'underline #00aaaa',
-        'heading-5': 'italic #00aaaa',
+        'heading-1': 'bold underline #00aaaa',  # bright blue
+        'heading-2': 'bold underline #257ba3',  # medium blue
+        'heading-3': 'bold underline #136868',  # cyan
+        'heading-4': 'underline #136868',
+        'heading-5': 'italic #136868',
         'heading-6': '#00aaaa',
         
         # Code
@@ -93,32 +93,31 @@ def create_layout_components():
         ("class:bold", ": Thoughts scroll"),
     ]
 
-    # Main chat composite
-    main_chat_composite = VSplit([
-        side_margin,
-        chat_window,
-        side_margin
-    ])
+    # # Main chat composite
+    # main_chat_composite = VSplit([
+    #     side_margin,
+    #     chat_window,
+    #     scroll_margin
+    # ])
 
-    # Message window composite
-    msg_window_composite = VSplit([
-        side_margin,
-        msg_window,
-        side_margin
-    ])
+    # # Message window composite
+    # msg_window_composite = VSplit([
+    #     side_margin,
+    #     msg_window,
+    #     side_margin
+    # ])
 
     # Chat side composite
     chat_side_composite = HSplit([
-        main_chat_composite,
+        chat_window,
         Window(height=1, char="-", style="class:line"),
-        msg_window_composite,
+        msg_window,
     ])
 
     # Thinking window composite
     thinking_window_composite = VSplit([
         side_margin,
-        thinking_window,
-        side_margin
+        thinking_window
     ])
 
     # Main composite
