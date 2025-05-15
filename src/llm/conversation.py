@@ -1,6 +1,6 @@
 import os
-from transformers import AutoTokenizer, AutoModelForCausalLM
 from src.llm.llm_db_loggers import *
+from src.llm.llm_handler import LLMHandler
 
 # log_file = os.getenv("LOGFILE")
 
@@ -20,19 +20,13 @@ class ConversationHandler:
             load_latest_system: bool whether to load only the latest system message (True) or all system messages (False)
         """
 
-        # Initialize directories
-        self.llm_name = llm_name
-        self.local_llm_dir = f"ai_models/{llm_name}"
-        self.llm_download_cache_dir = f"ai_models/cache"
-
-        if not os.path.exists("ai_models"):
-            os.makedirs("ai_models")
-            os.makedirs(self.llm_download_cache_dir)
-
-        # Load llm and storage objects
-        self.tokenizer, self.model = self._load_local_llm()
+        # Load llm and storage objects 
         self.context_window_len = context_window_len
         self.db_storage = DatabaseStorage()
+        self.llm_handler = LLMHandler()
+
+        self.tokenizer = self.llm_handler.get_tokenizer()
+        self.model = self.llm_handler.get_model()
 
         # Initialize conversation
         if conversation_id is None:
@@ -51,31 +45,6 @@ class ConversationHandler:
         self.context_window = self._load_context_window()
 
         return None
-
-    def _load_local_llm(self):
-        """
-            Checks if the model exists in the local dir. Loads or downloads them accordingly.
-            A cache wipe will be implemented soon, hence offloading the model after download.
-        """
-
-        # if len(os.listdir(self.local_llm_dir)) == 0:
-            
-        if not os.path.exists(self.local_llm_dir):
-            os.makedirs(self.local_llm_dir)
-        
-        tokenizer = AutoTokenizer.from_pretrained(self.llm_name, cache_dir=self.llm_download_cache_dir)
-        model = AutoModelForCausalLM.from_pretrained(self.llm_name, torch_dtype="auto", device_map="auto", cache_dir=self.llm_download_cache_dir)
-
-        model.save_pretrained(self.local_llm_dir)
-        tokenizer.save_pretrained(self.local_llm_dir)
-
-        tokenizer = None
-        model = None
-
-        tokenizer = AutoTokenizer.from_pretrained(self.local_llm_dir)
-        model = AutoModelForCausalLM.from_pretrained(self.local_llm_dir, torch_dtype="auto", device_map="auto")
-
-        return tokenizer, model
 
     def _load_context_window(self):
         """
@@ -130,42 +99,6 @@ class ConversationHandler:
 
         return None
 
-    def _parse_llm_response(self, model_outputs, model_inputs):
-        """
-        Parses the raw llm output to extract vectors, then decodes generated text. 
-        Only reasoning token is treated currently.
-        Saves llm output and token counts to database.
-        """
-        llm_output = model_outputs[0][len(model_inputs.input_ids[0]):].tolist()
-
-        try:
-            # Find 151668 (</think>) token idx
-            index = len(llm_output) - llm_output[::-1].index(151668)
-        except ValueError:
-            index = 0
-
-        if index != 0:
-            llm_output_think = llm_output[:index]
-            llm_output_content = llm_output[index:]
-
-            llm_output_think.pop()
-            llm_output_think.pop(0)
-
-            thinking_content = self.tokenizer.decode(llm_output_think, skip_special_tokens=True).strip("\n")
-            content = self.tokenizer.decode(llm_output_content, skip_special_tokens=True).strip("\n")
-
-            # Store messages in a consistent order - first reasoning, then response
-            if thinking_content:
-                self.manage_context_window("assistant-reasoning", thinking_content)
-            self.manage_context_window("assistant", content)
-
-        else:
-            thinking_content = None
-            content = self.tokenizer.decode(llm_output, skip_special_tokens=True).strip("\n")
-            self.manage_context_window("assistant", content)
-
-        return content, thinking_content
-
     def generate_chat_response(self, thinking_model: bool = True, max_new_tokens: int = 8096):
         """
             Generates llm output using the context window as input.
@@ -179,21 +112,8 @@ class ConversationHandler:
         """
 
         self.db_storage.update_message_count(self.conversation_id)
-        text = self.tokenizer.apply_chat_template(
-            self.context_window,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=thinking_model
-        )
 
-        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
-
-        model_outputs = self.model.generate(
-            **model_inputs,
-            max_new_tokens=max_new_tokens
-        )
-
-        llm_answer, llm_thinking = self._parse_llm_response(model_outputs, model_inputs)
+        llm_answer, llm_thinking = self.llm_handler.generate_response_from_context(self.context_window, thinking_model, max_new_tokens)
 
         self.db_storage.update_message_count(self.conversation_id)
         
@@ -228,23 +148,7 @@ class ConversationHandler:
             }
         ] + self.context_window
 
-        # Generate title using the model
-        text = self.tokenizer.apply_chat_template(
-            title_prompt,
-            tokenize=False,
-            add_generation_prompt=True,
-            enable_thinking=False  # No need for thinking mode for title generation
-        )
-
-        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
-        model_outputs = self.model.generate(
-            **model_inputs,
-            max_new_tokens=max_new_tokens
-        )
-
-        # Extract the generated title
-        title_output = model_outputs[0][len(model_inputs.input_ids[0]):].tolist()
-        title = self.tokenizer.decode(title_output, skip_special_tokens=True).strip("\n")
+        title = self.llm_handler.generate_response_from_context(title_prompt, thinking_model=False, max_new_tokens=max_new_tokens)
 
         # Update the conversation title in the database
         self.db_storage.update_conversation_title(self.conversation_id, title)

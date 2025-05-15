@@ -109,11 +109,13 @@ class StateManager:
         """
         formatted_message = self._format_message('assistant', message)
         self.chat_control.text = formatted_message + self.chat_control.text
-        
+        self.handler.manage_context_window("assistant", message)
+
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
             self.thinking_control.text = formatted_thinking + self.thinking_control.text
-        
+            self.handler.manage_context_window("assistant-reasoning", thinking)
+
     def reset_state(self) -> None:
         """Reset both UI controls and create a new handler instance."""
         self.chat_control.text = []
