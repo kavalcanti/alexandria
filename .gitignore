@@ -12,9 +12,8 @@ wheels/
 .env
 
 # Lose files
-TODOs.md
 debug.log
-
+docs/TODOs.md
 # Large files
 ai_models/*
 datasets/*

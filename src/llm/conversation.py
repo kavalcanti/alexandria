@@ -1,6 +1,5 @@
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from src.logger import *
 from src.llm.llm_db_loggers import *
 
 # log_file = os.getenv("LOGFILE")
