@@ -2,8 +2,8 @@
 import os
 from src.llm.service_msg import MSGService
 from src.llm.service_llm import LLMService
-from src.llm.llm_handler import LLMHandler
-from src.llm.llm_db_loggers import DatabaseStorage
+from src.llm.llm_controller import LLMHandler
+from src.llm.llm_db_controller import DatabaseStorage
 import logging
 
 logger = logging.getLogger(__name__)

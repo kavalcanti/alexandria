@@ -1,6 +1,6 @@
 import os
-from src.llm.llm_db_loggers import *
-from src.llm.llm_handler import LLMHandler
+from src.llm.llm_db_controller import *
+from src.llm.llm_controller import LLMHandler
 import logging
 
 logger = logging.getLogger(__name__)

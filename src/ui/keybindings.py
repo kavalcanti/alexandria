@@ -2,11 +2,8 @@
 Keyboard bindings for the Alexandria UI.
 """
 import asyncio
-import os
-import re
 from prompt_toolkit.application import get_app
 from prompt_toolkit.key_binding import KeyBindings
-from src.llm.conversation import ConversationHandler
 from src.ui.state_manager import StateManager
 
 def create_keybindings(
@@ -29,7 +26,7 @@ def create_keybindings(
         chat_window: ScrollablePane for chat
         thinking_window: ScrollablePane for thinking
         msg_window: Window for message input
-        handler: ConversationHandler instance
+        handler: ConversationManager instance
         application: Optional Application instance for focus management
     
     Returns:
