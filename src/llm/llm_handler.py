@@ -19,6 +19,10 @@ class LLMHandler:
     
     def get_model(self):
         return self.model
+    
+    def get_token_count(self, text: str):
+        return len(self.tokenizer.encode(text))
+
 
     def _load_local_llm(self):
         """

@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout.layout import Layout
 
-from src.llm.conversation import ConversationHandler
+from src.llm.conversation_manager import ConversationManager
 from src.ui.layout import create_layout_components
 from src.ui.keybindings import create_keybindings
 from src.ui.state_manager import StateManager
@@ -36,9 +36,8 @@ def create_application(conversation_id=None):
         style
     ) = create_layout_components()
 
-    # Create conversation handler with specified ID or default
-    handler = ConversationHandler(
-        os.getenv('HF_MODEL'),
+    # Create conversation manager with specified ID or default
+    conversation_manager = ConversationManager(
         conversation_id=conversation_id  # None by default, which will create a new conversation
     )
 
@@ -59,7 +58,7 @@ def create_application(conversation_id=None):
         chat_window,
         thinking_window,
         msg_window,
-        handler,
+        conversation_manager,
         application=app
     )
 

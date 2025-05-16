@@ -246,7 +246,7 @@ class DatabaseStorage:
                 )
                 .where(
                     self.messages_table.c.conversation_id == validated_id,
-                    self.messages_table.c.role.in_(['user', 'assistant', 'system', 'assistant-reasoning'])
+                    self.messages_table.c.role.in_(['user', 'assistant', 'system'])
                 )
                 .order_by(self.messages_table.c.timestamp.desc())
                 .limit(validated_size)
