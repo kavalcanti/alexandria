@@ -14,6 +14,7 @@ wheels/
 # Lose files
 debug.log
 docs/TODOs.md
+logs/*
 # Large files
 ai_models/*
 datasets/*
