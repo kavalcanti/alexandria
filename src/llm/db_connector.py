@@ -1,6 +1,9 @@
 import logging
 from contextlib import contextmanager
+from typing import Generator, Optional
+from sqlalchemy.engine import Engine, Connection
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import MetaData
 from src.db.db_config import get_engine, metadata
 from src.db.db_init import DatabaseInitializer
 from src.db.db_models import conversations_table, messages_table
@@ -11,13 +14,35 @@ from src.logger import get_module_logger
 logger = get_module_logger(__name__)
 
 class DatabaseStorage:
-    def __init__(self):
-        """Initialize database storage with connection and schema validation."""
+    """
+    A class to handle database storage operations with connection management and schema validation.
+    
+    Attributes:
+        engine (Engine): SQLAlchemy engine instance for database connections
+        metadata (MetaData): Database metadata containing schema information
+        db_schema (Optional[str]): Name of the database schema
+        validator (DatabaseInputValidator): Validator instance for database inputs
+        conversations_table: SQLAlchemy table for conversations
+        messages_table: SQLAlchemy table for messages
+        db_initializer (DatabaseInitializer): Initializer for database schema
+    """
+    
+    def __init__(self) -> None:
+        """
+        Initialize database storage with connection and schema validation.
+        
+        Raises:
+            SQLAlchemyError: If database connection or initialization fails
+            ValueError: If database configuration is invalid
+            
+        Returns:
+            None
+        """
         try:
-            self.engine = get_engine()
-            self.metadata = metadata
-            self.db_schema = self.metadata.schema
-            self.validator = DatabaseInputValidator()
+            self.engine: Engine = get_engine()
+            self.metadata: MetaData = metadata
+            self.db_schema: Optional[str] = self.metadata.schema
+            self.validator: DatabaseInputValidator = DatabaseInputValidator()
 
             # Initialize table references directly from imported models
             self.conversations_table = conversations_table
@@ -34,8 +59,16 @@ class DatabaseStorage:
             raise
 
     @contextmanager
-    def get_connection(self):
-        """Context manager for database connections."""
+    def get_connection(self) -> Generator[Connection, None, None]:
+        """
+        Context manager for handling database connections.
+        
+        Yields:
+            Connection: An active SQLAlchemy database connection
+            
+        Raises:
+            Exception: If any database operation fails
+        """
         conn = None
         try:
             logger.debug("Attempting to establish database connection")
@@ -53,8 +86,16 @@ class DatabaseStorage:
                 logger.debug("Closing database connection")
                 conn.close()
 
-    def _validate_schema(self):
-        """Validate and initialize database schema if needed."""
+    def _validate_schema(self) -> None:
+        """
+        Validate and initialize database schema if needed.
+        
+        Raises:
+            SQLAlchemyError: If schema validation or initialization fails
+            
+        Returns:
+            None
+        """
         try:
             if not self.db_initializer.verify_connection():
                 raise SQLAlchemyError("Could not establish database connection")

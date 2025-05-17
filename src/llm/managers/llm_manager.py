@@ -1,3 +1,5 @@
+from typing import List, Dict, Tuple, Optional, Any
+
 from src.llm.controllers.llm_db_cnvs_controller import ConversationsController
 from src.llm.controllers.llm_controller import LLMController
 
@@ -7,21 +9,25 @@ logger = get_module_logger(__name__)
 
 class LLMManager:
     def __init__(self, 
-                 msg_service = None,
-                 conversation_id: int = None, 
+                 msg_service: Optional[Any] = None,
+                 conversation_id: Optional[int] = None, 
                  load_latest_system: bool = True,
-                 conversations_controller: ConversationsController = None,
-                 llm_controller: LLMController = None):
-        """
-        Interacts with the context manager to get the context window and generate responses.
+                 conversations_controller: Optional[ConversationsController] = None,
+                 llm_controller: Optional[LLMController] = None) -> None:
+        """Initialize the LLMManager.
 
-        Params:
-            msg_service: Optional ContextManager instance that manages the context window.
+        This class interacts with the context manager to get the context window and generate responses.
+
+        Args:
+            msg_service: Optional context manager instance that manages the context window.
                        If None, the service will maintain its own context window state.
-            conversation_id: int id of the conversation. If None, creates a new conversation.
-            load_latest_system: bool whether to load only the latest system message (True) or all system messages (False)
-            conversations_controller: Optional ConversationsController instance for dependency injection
-            llm_controller: Optional LLMController instance for dependency injection
+            conversation_id: ID of the conversation. If None, creates a new conversation.
+            load_latest_system: Whether to load only the latest system message (True) or all system messages (False).
+            conversations_controller: Optional ConversationsController instance for dependency injection.
+            llm_controller: Optional LLMController instance for dependency injection.
+
+        Returns:
+            None
         """
         # Load dependencies
         self.conversations_controller = conversations_controller or ConversationsController()
@@ -32,24 +38,26 @@ class LLMManager:
         # Store reference to context manager or initialize own context window
         self.context_manager = msg_service
         if self.context_manager is None:
-            self._context_window = []
+            self._context_window: List[Dict[str, str]] = []
             logger.info("No context manager provided, using internal context window")
         else:
             logger.info(f"Context manager's context window loaded")
         
         return None
 
-    def generate_chat_response(self, thinking_model: bool = True, max_new_tokens: int = 8096):
-        """
-        Generates llm output using the context window as input.
-        Calls parser to return decoded strings.
+    def generate_chat_response(self, thinking_model: bool = True, max_new_tokens: int = 8096) -> Tuple[str, str]:
+        """Generate LLM output using the context window as input.
+
+        This method calls the parser to return decoded strings.
         
-        Params:
-            thinking_model: str defaults to True to utilize Qwen's reasoning.
-            max_new_tokens: int max new tokens to be generated
+        Args:
+            thinking_model: Whether to utilize Qwen's reasoning capabilities.
+            max_new_tokens: Maximum number of new tokens to be generated.
             
         Returns:
-            tuple: (llm_answer, llm_thinking) containing the response and reasoning
+            A tuple containing (llm_answer, llm_thinking) where:
+                - llm_answer: The generated response
+                - llm_thinking: The reasoning behind the response
         """
         # Get context window from appropriate source
         context_window = self.context_manager.context_window if self.context_manager else self._context_window
@@ -72,17 +80,17 @@ class LLMManager:
       
         return llm_answer, llm_thinking
 
-    def _generate_conversation_title(self, max_new_tokens: int = 120):
-        """
-        Generate a title for the conversation based on the first exchange between user and assistant.
+    def _generate_conversation_title(self, max_new_tokens: int = 120) -> None:
+        """Generate a title for the conversation based on the first exchange.
+
         This method should be called after the first complete exchange (one user message and one assistant response).
         Will work with or without a system message present.
         
         Args:
-            max_new_tokens: Maximum number of tokens for the generated title
+            max_new_tokens: Maximum number of tokens for the generated title.
             
         Returns:
-            None, but updates the conversation title in the database
+            None. Updates the conversation title in the database.
         """
         # Get context window from appropriate source
         context_window = self.context_manager.context_window[-2:] if self.context_manager else self._context_window
@@ -106,13 +114,21 @@ class LLMManager:
         self.conversations_controller.update_conversation_title(self.conversation_id, title[0])
 
     @property
-    def context_window(self):
-        """Get the current context window."""
+    def context_window(self) -> List[Dict[str, str]]:
+        """Get the current context window.
+        
+        Returns:
+            The current context window as a list of message dictionaries.
+        """
         return self.context_manager.context_window if self.context_manager else self._context_window
 
     @context_window.setter
-    def context_window(self, value):
-        """Update the context window."""
+    def context_window(self, value: List[Dict[str, str]]) -> None:
+        """Update the context window.
+        
+        Args:
+            value: The new context window value as a list of message dictionaries.
+        """
         if self.context_manager:
             self.context_manager.context_window = value
         else:

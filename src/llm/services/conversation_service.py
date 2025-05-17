@@ -1,12 +1,18 @@
 """
-Main conversation service. Facade for the conversation managers and controllers.
+Main conversation service that acts as a facade for conversation management.
 
-Bootstraps the backend and manages conversation managers and controllers.
-Acts as a facade for the conversation functionality.
+This service bootstraps the backend and manages conversation managers and controllers.
+It provides a unified interface for all conversation-related functionality and serves
+as the main entry point for the UI layer.
 
-Provides entry points for the UI
+The service coordinates:
+- Context management for conversation history
+- LLM interactions and response generation
+- Database operations for conversations and messages
+- Prompt management
 """
-import os
+
+from typing import List, Optional, Dict, Any
 from src.llm.managers.context_manager import ContextManager
 from src.llm.managers.llm_manager import LLMManager
 from src.llm.controllers.llm_controller import LLMController
@@ -19,15 +25,28 @@ from src.llm.db_connector import DatabaseStorage
 logger = get_module_logger(__name__) 
 
 class ConversationService:
-    def __init__(self, context_window_len: int = 5, conversation_id: int = None, load_latest_system: bool = True):
+    def __init__(
+        self, 
+        context_window_len: int = 5, 
+        conversation_id: Optional[int] = None, 
+        load_latest_system: bool = True
+    ) -> None:
         """
-        Creates and manages the conversation services and their shared dependencies.
-        Acts as a facade for the conversation functionality.
-        
+        Initialize the conversation service with all required components.
+
+        This constructor sets up all necessary controllers and managers for handling
+        conversations, including database storage, context management, and LLM interactions.
+
         Args:
-            context_window_len: Number of messages to keep in context window
-            conversation_id: Optional ID of existing conversation
-            load_latest_system: Whether to load only latest system message
+            context_window_len: Number of messages to maintain in the context window.
+                Defaults to 5.
+            conversation_id: Optional ID of an existing conversation to load.
+                If None, creates a new conversation. Defaults to None.
+            load_latest_system: Whether to load only the most recent system message.
+                Defaults to True.
+
+        Returns:
+            None
         """
         # Initialize shared dependencies
         self.db_storage = DatabaseStorage()
@@ -67,14 +86,43 @@ class ConversationService:
         logger.info(f"Conversation Service initialized with conversation ID: {self.conversation_id}")
 
     def manage_context_window(self, role: str, message: str) -> None:
-        """Delegate to context manager to manage context window."""
+        """
+        Update the context window with a new message.
+
+        Delegates context window management to the context manager component.
+
+        Args:
+            role: The role of the message sender (e.g., 'user', 'assistant', 'system')
+            message: The content of the message to add to context
+
+        Returns:
+            None
+        """
         self.context_manager.manage_context_window(role, message)
 
-    def generate_chat_response(self, thinking_model: bool = True, max_new_tokens: int = 8096):
-        """Delegate to LLM service."""
+    def generate_chat_response(self, thinking_model: bool = True, max_new_tokens: int = 8096) -> str:
+        """
+        Generate a response using the LLM based on current context.
+
+        Delegates the response generation to the LLM manager component.
+
+        Args:
+            thinking_model: Whether to use the thinking model for response generation.
+                Defaults to True.
+            max_new_tokens: Maximum number of tokens to generate in the response.
+                Defaults to 8096.
+
+        Returns:
+            str: The generated response from the LLM
+        """
         return self.llm_manager.generate_chat_response(thinking_model, max_new_tokens)
 
     @property
-    def context_window(self):
-        """Access the context window from context manager."""
+    def context_window(self) -> List[Dict[str, Any]]:
+        """
+        Get the current context window contents.
+
+        Returns:
+            List[Dict[str, Any]]: A list of message dictionaries in the current context window
+        """
         return self.context_manager.context_window 

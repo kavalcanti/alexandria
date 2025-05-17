@@ -1,5 +1,6 @@
-"""Database storage and logging operations."""
+"""Database storage and logging operations for managing conversations."""
 import logging
+from typing import Optional, List
 from sqlalchemy import update, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from src.llm.db_connector import DatabaseStorage
@@ -7,8 +8,28 @@ from src.llm.db_connector import DatabaseStorage
 logger = logging.getLogger(__name__)
 
 class ConversationsController:
-    def __init__(self, db_storage: DatabaseStorage):
-        """Controller for conversations table."""
+    """Controller for managing conversation records in the database.
+    
+    This class handles CRUD operations for conversations, including message counting,
+    title management, and conversation tracking.
+    
+    Attributes:
+        db_storage (DatabaseStorage): Database connection and storage manager.
+        validator: Validator instance for input validation.
+        conversations_table: SQLAlchemy table reference for conversations.
+        messages_table: SQLAlchemy table reference for messages.
+    """
+
+    def __init__(self, db_storage: Optional[DatabaseStorage] = None) -> None:
+        """Initialize the conversations controller.
+
+        Args:
+            db_storage: Database storage instance. If None, creates a new instance.
+
+        Raises:
+            SQLAlchemyError: If database connection fails.
+            ValueError: If validation setup fails.
+        """
         try:
             self.db_storage = db_storage or DatabaseStorage()
             self.validator = self.db_storage.validator
@@ -20,16 +41,20 @@ class ConversationsController:
         except (SQLAlchemyError, ValueError) as e:
             logger.error(f"Failed to initialize the context manager: {str(e)}")
             raise
+        
+        return None
 
     def conversation_exists(self, conversation_id: int) -> bool:
-        """
-        Check if a conversation exists in the database.
+        """Check if a conversation exists in the database.
 
         Args:
             conversation_id: The ID of the conversation to check.
 
         Returns:
-            bool: True if the conversation exists, False otherwise.
+            True if the conversation exists, False otherwise.
+
+        Raises:
+            ValueError: If conversation_id validation fails.
         """
         try:
             validated_id = self.validator.validate_id(conversation_id)
@@ -44,19 +69,24 @@ class ConversationsController:
             logger.error(f"Invalid conversation ID: {str(e)}")
             return False
 
-    def insert_single_conversation(self, conversation_id: int, message_count: int = 0, title: str = "", title_embedding: list[float] = None):
-        """
-        Insert a single conversation record into the database.
+    def insert_single_conversation(
+        self, 
+        conversation_id: int, 
+        message_count: int = 0, 
+        title: str = "", 
+        title_embedding: Optional[List[float]] = None
+    ) -> None:
+        """Insert a single conversation record into the database.
 
         Args:
-            conversation_id: The ID for the new conversation
-            message_count: Initial message count
-            title: The title of the conversation
-            title_embedding: Vector embedding for the title
+            conversation_id: The ID for the new conversation.
+            message_count: Initial message count. Defaults to 0.
+            title: The title of the conversation. Defaults to empty string.
+            title_embedding: Vector embedding for the title. Defaults to None.
             
         Raises:
-            ValueError: If any input validation fails
-            SQLAlchemyError: If database operation fails
+            ValueError: If any input validation fails.
+            SQLAlchemyError: If database operation fails.
         """
         try:
             # Validate all inputs
@@ -79,17 +109,16 @@ class ConversationsController:
             logger.error(f"Failed to insert conversation: {str(e)}")
             raise
 
-    def update_message_count(self, conversation_id: int, new_messages: int = 1):
-        """
-        Update the message count for a conversation.
+    def update_message_count(self, conversation_id: int, new_messages: int = 1) -> None:
+        """Update the message count for a conversation.
 
         Args:
-            conversation_id: The ID of the conversation to update
-            new_messages: Number of new messages to add to count
+            conversation_id: The ID of the conversation to update.
+            new_messages: Number of new messages to add to count. Defaults to 1.
             
         Raises:
-            ValueError: If any input validation fails
-            SQLAlchemyError: If database operation fails
+            ValueError: If any input validation fails.
+            SQLAlchemyError: If database operation fails.
         """
         try:
             # Validate inputs
@@ -109,19 +138,24 @@ class ConversationsController:
             logger.error(f"Failed to update message count: {str(e)}")
             raise
 
-    def update_conversation_title(self, conversation_id: int, title: str, title_embedding: list[float] = None):
-        """
-        Update the title and optionally the title embedding for a conversation.
-        The title_embedding parameter is reserved for future implementation of semantic search features.
+    def update_conversation_title(
+        self, 
+        conversation_id: int, 
+        title: str, 
+        title_embedding: Optional[List[float]] = None
+    ) -> None:
+        """Update the title and optionally the title embedding for a conversation.
+
+        The title_embedding parameter enables future implementation of semantic search features.
 
         Args:
-            conversation_id: The ID of the conversation to update
-            title: The new title for the conversation
-            title_embedding: Optional vector embedding for the title (default: None)
+            conversation_id: The ID of the conversation to update.
+            title: The new title for the conversation.
+            title_embedding: Optional vector embedding for the title. Defaults to None.
             
         Raises:
-            ValueError: If any input validation fails
-            SQLAlchemyError: If database operation fails
+            ValueError: If any input validation fails.
+            SQLAlchemyError: If database operation fails.
         """
         try:
             # Validate inputs
@@ -148,14 +182,13 @@ class ConversationsController:
             raise
 
     def get_next_conversation_id(self) -> int:
-        """
-        Get the next available conversation ID from the sequence.
+        """Get the next available conversation ID from the sequence.
         
         Returns:
-            int: Next available conversation ID
+            Next available conversation ID.
             
         Raises:
-            SQLAlchemyError: If database operation fails
+            SQLAlchemyError: If database operation fails.
         """
         try:
             with self.db_storage.get_connection() as conn:

@@ -1,5 +1,7 @@
-"""Database storage and logging operations."""
+"""Database storage and logging operations for managing message records."""
 import logging
+from datetime import datetime
+from typing import List, Dict, Any
 from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from src.llm.db_connector import DatabaseStorage
@@ -9,8 +11,16 @@ from src.logger import get_module_logger
 logger = get_module_logger(__name__) 
 
 class MessagesController:
-    def __init__(self, db_storage: DatabaseStorage):
-        """Controller for messages table."""
+    def __init__(self, db_storage: DatabaseStorage | None = None) -> None:
+        """Initialize the MessagesController.
+
+        Args:
+            db_storage (DatabaseStorage | None): Database storage instance. If None, creates a new instance.
+
+        Raises:
+            SQLAlchemyError: If database connection fails.
+            ValueError: If database validation fails.
+        """
         try:
             self.db_storage = db_storage or DatabaseStorage()
             self.validator = self.db_storage.validator
@@ -23,19 +33,18 @@ class MessagesController:
             logger.error(f"Failed to initialize the context manager: {str(e)}")
             raise
 
-    def insert_single_message(self, conversation_id: int, role: str, message: str, token_count: int):
-        """
-        Insert a single message record into the database.
+    def insert_single_message(self, conversation_id: int, role: str, message: str, token_count: int) -> None:
+        """Insert a single message record into the database.
 
         Args:
-            conversation_id: The ID of the conversation this message belongs to
-            role: The role of the message sender
-            message: The message content
-            token_count: The total token count for this message
+            conversation_id (int): The ID of the conversation this message belongs to.
+            role (str): The role of the message sender (e.g., 'user', 'assistant').
+            message (str): The message content.
+            token_count (int): The total token count for this message.
             
         Raises:
-            ValueError: If any input validation fails
-            SQLAlchemyError: If database operation fails
+            ValueError: If any input validation fails.
+            SQLAlchemyError: If database operation fails.
         """
         try:
             # Validate all inputs
@@ -61,22 +70,29 @@ class MessagesController:
             logger.error(f"Message details - Role: {role}, ConvID: {conversation_id}")
             raise
 
-    def get_context_window_messages(self, conversation_id: int, window_size: int) -> list[dict]:
-        """
-        Fetch the most recent messages for the context window.
+        return None
+
+    def get_context_window_messages(self, conversation_id: int, window_size: int) -> List[Dict[str, Any]]:
+        """Fetch the most recent messages for the context window.
+
         Only includes messages with roles 'user', 'assistant', and 'system' for the LLM context.
         Messages are ordered by timestamp to maintain conversation sequence.
 
         Args:
-            conversation_id: The ID of the conversation
-            window_size: Number of messages to fetch for context window
+            conversation_id (int): The ID of the conversation.
+            window_size (int): Number of messages to fetch for context window.
             
         Returns:
-            list[dict]: List of messages in the format {"role": str, "content": str, "timestamp": datetime}
+            List[Dict[str, Any]]: List of messages with format:
+                {
+                    "role": str,
+                    "content": str,
+                    "timestamp": datetime
+                }
             
         Raises:
-            ValueError: If any input validation fails
-            SQLAlchemyError: If database operation fails
+            ValueError: If any input validation fails.
+            SQLAlchemyError: If database operation fails.
         """
         try:
             validated_id = self.validator.validate_id(conversation_id)
@@ -116,9 +132,18 @@ class MessagesController:
             logger.error(f"Failed to fetch context window messages: {str(e)}")
             raise
 
-    def get_thinking_messages(self, conversation_id: int) -> list[dict]:
-        """
-        Fetch the thinking messages for the conversation.
+    def get_thinking_messages(self, conversation_id: int) -> List[str]:
+        """Fetch the thinking messages for the conversation.
+
+        Args:
+            conversation_id (int): The ID of the conversation.
+
+        Returns:
+            List[str]: List of thinking messages.
+
+        Raises:
+            ValueError: If conversation_id validation fails.
+            SQLAlchemyError: If database operation fails.
         """
         try:
             validated_id = self.validator.validate_id(conversation_id)

@@ -5,9 +5,26 @@ A sophisticated terminal-based chat interface for interacting with Large Languag
 ## Features
 
 - 🖥️ Terminal User Interface with split-pane design
-- 🤖 Integration with Hugging Face transformers for LLM functionality
-- 💭 Visualization of LLM reasoning/thought process
-- 💾 Persistent conversation storage using PostgreSQL
+  - Chat history and LLM response window
+  - Real-time thought process visualization
+  - Full keyboard navigation support
+- 🤖 Hugging Face Transformers Integration
+  - Default support for Qwen3-0.6B
+  - Local model caching for improved performance
+  - Configurable model selection
+- 💭 Thought Process Visualization
+  - Real-time display of LLM reasoning
+  - Separate scrollable thinking history
+  - Insight into model decision making
+- 💾 Robust Conversation Management
+  - PostgreSQL-based persistence
+  - Unique conversation IDs
+  - Resume previous conversations
+  - Automatic conversation titling
+- 📜 Smart Context Management
+  - Configurable sliding context window
+  - System prompt injection
+  - Efficient token usage tracking
 - 🔄 Automatic conversation management with unique IDs
 - 🔍 Vector embedding support for future semantic search capabilities
 - 📜 Configurable conversation history with sliding context window
@@ -98,8 +115,23 @@ alexandria/
 ├── logs/              # Application logs
 ├── src/               # Source code
 │   ├── db/           # Database operations and models
+│   │   ├── db_config.py    # Database configuration
+│   │   ├── db_init.py      # Database initialization
+│   │   ├── db_utils.py     # Database utilities
+│   │   └── db_models.py    # Database models
 │   ├── llm/          # LLM integration and processing
+│   │   ├── controllers/    # LLM control logic
+│   │   ├── managers/       # LLM state management
+│   │   ├── services/       # Core LLM services
+│   │   ├── embedding/      # Embedding functionality
+│   │   ├── retrieval/      # Content retrieval
+│   │   ├── tools/         # LLM tools and utilities
+│   │   └── db_connector.py # Database integration
 │   ├── ui/           # User interface components
+│   │   ├── state_manager.py     # UI state management
+│   │   ├── layout.py            # UI layout definitions
+│   │   ├── markdown_formatter.py # Text formatting
+│   │   └── keybindings.py       # Keyboard shortcuts
 │   ├── logger.py     # Logging setup
 │   └── userland.py   # Core application logic
 ├── .conda/            # Conda environment directory
@@ -108,7 +140,8 @@ alexandria/
 ├── alexandria.sh     # Launch script
 ├── pyproject.toml    # Project metadata and configuration
 ├── requirements.txt  # Project dependencies
-└── uv.lock          # Dependency lock file
+├── uv.lock          # Dependency lock file
+└── .python-version   # Python version specification
 ```
 
 ## Technical Stack
