@@ -1,9 +1,9 @@
 """Manages the context window and message history for conversations."""
 
-from src.llm.llm_db_msg_controller import MessagesController
-from src.llm.llm_db_cnvs_controller import ConversationsController
-from src.llm.llm_controller import LLMController
-from src.llm.prompt_manager import LLMPromptController
+from src.llm.controllers.llm_db_msg_controller import MessagesController
+from src.llm.controllers.llm_db_cnvs_controller import ConversationsController
+from src.llm.controllers.llm_controller import LLMController
+from src.llm.managers.prompt_manager import LLMPromptManager
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__) 
@@ -16,7 +16,7 @@ class ContextManager:
                  messages_controller: MessagesController = None,
                  conversations_controller: ConversationsController = None,
                  llm_controller: LLMController = None,
-                 prompt_controller: LLMPromptController = None):
+                 prompt_controller: LLMPromptManager = None):
         """
         Manages the context window and message history for conversations.
         Handles loading, updating, and maintaining the conversation context.
@@ -89,8 +89,11 @@ class ContextManager:
         Assistant reasoning messages are stored but not included in the context.
         """
         # Store the new message if it's a valid role
+        logger.debug(f"Managing context window: {role} {message}")
+        if role == 'user':
+                message = self.prompt_controller.user_prompt_injector(message)
 
-        logger.info(f"Context window: {self._context_window}")
+        logger.debug(f"Context window: {self._context_window}")
         if role in ['user', 'assistant', 'system', 'assistant-reasoning']:
             self.messages_controller.insert_single_message(
                 self.conversation_id,
@@ -99,8 +102,6 @@ class ContextManager:
                 self.llm_controller.get_token_count(message)  # Get token count
             )
             # Only refresh context window for messages that should be in it
-            if role == 'user':
-                message = self.prompt_controller.user_prompt_injector(message)
             
             if role in ['user', 'assistant', 'system']:
                 self.conversations_controller.update_message_count(self.conversation_id)
@@ -130,7 +131,7 @@ class ContextManager:
                         }
                     )
 
-            logger.info(f"Context window: {self._context_window}")
+            logger.debug(f"Context window: {self._context_window}")
         else:
             logger.warning(f"Invalid message role: {role}")
 

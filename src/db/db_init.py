@@ -4,8 +4,9 @@ from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import MetaData
+from src.logger import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 class DatabaseInitializer:
     def __init__(self, engine: Engine, metadata: MetaData):

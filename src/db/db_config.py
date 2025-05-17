@@ -4,6 +4,9 @@ from typing import Optional
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import QueuePool
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__)
 
 def get_db_url() -> str:
     """Get database URL from environment variables."""

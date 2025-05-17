@@ -3,7 +3,7 @@
 Handles the display of the thinking messages. Future features will include chained llm calls.
 """
 
-from src.llm.llm_db_msg_controller import MessagesController
+from src.llm.controllers.llm_db_msg_controller import MessagesController
 
 class RightPaneService:
     def __init__(self, messages_controller: MessagesController):

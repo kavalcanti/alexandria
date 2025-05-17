@@ -1,12 +1,12 @@
 import os
-from src.llm.llm_db_cnvs_controller import ConversationsController
-from src.llm.llm_controller import LLMController
+from src.llm.controllers.llm_db_cnvs_controller import ConversationsController
+from src.llm.controllers.llm_controller import LLMController
 
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__) 
 
-class LLMService:
+class LLMManager:
     def __init__(self, 
                  msg_service = None,
                  conversation_id: int = None, 
@@ -22,7 +22,7 @@ class LLMService:
             conversation_id: int id of the conversation. If None, creates a new conversation.
             load_latest_system: bool whether to load only the latest system message (True) or all system messages (False)
             conversations_controller: Optional ConversationsController instance for dependency injection
-            llm_handler: Optional LLMHandler instance for dependency injection
+            llm_controller: Optional LLMController instance for dependency injection
         """
         # Load dependencies
         self.conversations_controller = conversations_controller or ConversationsController()
@@ -95,8 +95,8 @@ class LLMService:
         # Create a prompt for title generation
         title_prompt = [
             {
-                "role": "system",
-                "content": "You are an expert at summarizing conversations. Based on the following exchange, generate a concise and descriptive title (max 120 characters)."
+                'role': 'system',
+                'content': 'You are an expert at summarizing conversations. Based on the following exchange, generate a concise and descriptive title (max 120 characters).'
             }
         ] + context_window
 
@@ -116,4 +116,4 @@ class LLMService:
         if self.context_manager:
             self.context_manager.context_window = value
         else:
-            self._context_window = value
+            self._context_window = value 

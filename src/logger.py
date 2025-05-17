@@ -2,9 +2,17 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def _get_log_level():
-    """Get log level from environment variable, default to INFO if not set."""
-    log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+def _get_log_level(env_var='LOG_LEVEL', default='INFO'):
+    """
+    Get log level from environment variable.
+    
+    Args:
+        env_var: Environment variable name to check for log level
+        default: Default log level if environment variable is not set
+    Returns:
+        logging level constant
+    """
+    log_level = os.getenv(env_var, default).upper()
     return getattr(logging, log_level, logging.INFO)
 
 def get_module_logger(module_path):
@@ -42,7 +50,9 @@ def get_module_logger(module_path):
             maxBytes=max_bytes,
             backupCount=1
         )
-        level = _get_log_level()
+        
+        # Get module-specific log level
+        level = _get_log_level(env_var='MODULE_LOG_LEVEL', default='INFO')
         file_handler.setLevel(level)
         
         # Create formatter that includes the full module path
@@ -75,7 +85,9 @@ def configure_logger():
         maxBytes=max_bytes,
         backupCount=1
     )
-    level = _get_log_level()
+    
+    # Get root logger level
+    level = _get_log_level(env_var='LOG_LEVEL', default='INFO')
     file_handler.setLevel(level)
     
     # Create formatter

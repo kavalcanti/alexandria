@@ -3,9 +3,9 @@ UI state management and context window integration.
 """
 from typing import Optional, List, Dict, Tuple
 from prompt_toolkit.layout.controls import FormattedTextControl
-from src.llm.conversation_manager import ConversationManager
+from src.llm.services.conversation_service import ConversationService
 from src.ui.markdown_formatter import MarkdownFormatter
-from src.llm.service_right_pane import RightPaneService
+from src.llm.services.service_right_pane import RightPaneService
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__)
@@ -17,7 +17,7 @@ class StateManager:
         self,
         chat_control: FormattedTextControl,
         thinking_control: FormattedTextControl,
-        conversation_manager: ConversationManager
+        conversation_service: ConversationService
     ):
         """
         Initialize the state manager.
@@ -25,20 +25,21 @@ class StateManager:
         Args:
             chat_control: FormattedTextControl for chat display
             thinking_control: FormattedTextControl for thinking display
-            conversation_manager: ConversationManager instance
+            conversation_service: ConversationService instance
         """
         self.chat_control = chat_control
         self.thinking_control = thinking_control
-        self.conversation_manager = conversation_manager
+        self.conversation_service = conversation_service
         self.markdown_formatter = MarkdownFormatter()
-        self.right_pane_service = RightPaneService(self.conversation_manager.messages_controller)
+        self.right_pane_service = RightPaneService(self.conversation_service.messages_controller)
         # Initialize empty state
         self.chat_control.text = []
         self.thinking_control.text = []
         
         # Load initial conversation state
-        self._load_right_pane_messages()
-        self._load_initial_conversation()
+        if conversation_service.conversation_id:
+            self._load_right_pane_messages()
+            self._load_initial_conversation()
         
     def _format_message(self, role: str, content: str) -> FormattedText:
         """
@@ -78,7 +79,7 @@ class StateManager:
         thinking_text: FormattedText = []
         
         # Get messages from context window in reverse order
-        for message in reversed(self.conversation_manager.context_window):
+        for message in reversed(self.conversation_service.context_window):
             role = message.get('role')
             content = message.get('content', '')
             
@@ -95,7 +96,7 @@ class StateManager:
         """
 
         thinking_text: FormattedText = []
-        for message in self.right_pane_service.get_thinking_messages(self.conversation_manager.conversation_id):
+        for message in self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id):
             formatted_msg = self._format_message('assistant-reasoning', message)
             thinking_text.extend(formatted_msg)
         self.thinking_control.text = thinking_text
@@ -110,7 +111,7 @@ class StateManager:
         """
         formatted_message = self._format_message('user', message)
         self.chat_control.text = formatted_message + self.chat_control.text
-        self.conversation_manager.manage_context_window("user", message)
+        self.conversation_service.manage_context_window("user", message)
         
     def append_assistant_message(self, message: str, thinking: Optional[str] = None) -> None:
         """
@@ -124,18 +125,20 @@ class StateManager:
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
             self.thinking_control.text = formatted_thinking + self.thinking_control.text
-            self.conversation_manager.manage_context_window("assistant-reasoning", thinking)
+            self.conversation_service.manage_context_window("assistant-reasoning", thinking)
+            logger.info(f"Appending assistant reasoning message: {thinking}")
 
         formatted_message = self._format_message('assistant', message)
         self.chat_control.text = formatted_message + self.chat_control.text
-        self.conversation_manager.manage_context_window("assistant", message)
+        self.conversation_service.manage_context_window("assistant", message)
+        logger.info(f"Appending assistant message: {message}")
 
 
     def reset_state(self) -> None:
         """Reset both UI controls and create a new conversation manager instance."""
         self.chat_control.text = []
         self.thinking_control.text = []
-        self.conversation_manager = ConversationManager()
+        self.conversation_service = ConversationService()
         
     def get_chat_text(self) -> FormattedText:
         """Get current chat text."""

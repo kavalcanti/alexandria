@@ -2,7 +2,7 @@
 LLM Prompt Controller placeholder
 '''
 
-class LLMPromptController:
+class LLMPromptManager:
     def __init__(self):
 
         # Loads system prompts.

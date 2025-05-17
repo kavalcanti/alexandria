@@ -44,6 +44,8 @@ class MessagesController:
             validated_message = self.validator.sanitize_string(message, max_length=8092)  # No limit for message content
             validated_count = self.validator.validate_token_count(token_count)
 
+            logger.debug(f"Validation successful - Role: {validated_role}, ConvID: {validated_id}")
+
             insert_stmt = self.messages_table.insert().values(
                 conversation_id=validated_id,
                 role=validated_role,
@@ -52,10 +54,11 @@ class MessagesController:
             )
 
             with self.db_storage.get_connection() as conn:
-                conn.execute(insert_stmt)
+                result = conn.execute(insert_stmt)
                 
         except (ValueError, SQLAlchemyError) as e:
             logger.error(f"Failed to insert message: {str(e)}")
+            logger.error(f"Message details - Role: {role}, ConvID: {conversation_id}")
             raise
 
     def get_context_window_messages(self, conversation_id: int, window_size: int) -> list[dict]:

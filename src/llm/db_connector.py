@@ -6,7 +6,9 @@ from src.db.db_init import DatabaseInitializer
 from src.db.db_models import conversations_table, messages_table
 from src.db.db_utils import DatabaseInputValidator
 
-logger = logging.getLogger(__name__)
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__)
 
 class DatabaseStorage:
     def __init__(self):
@@ -25,6 +27,8 @@ class DatabaseStorage:
             self.db_initializer = DatabaseInitializer(self.engine, self.metadata)
             self._validate_schema()
 
+            logger.info("Database storage initialized successfully")
+
         except (SQLAlchemyError, ValueError) as e:
             logger.error(f"Failed to initialize database storage: {str(e)}")
             raise
@@ -32,15 +36,26 @@ class DatabaseStorage:
     @contextmanager
     def get_connection(self):
         """Context manager for database connections."""
-        conn = self.engine.connect()
+        conn = None
         try:
+            logger.debug("Attempting to establish database connection")
+            conn = self.engine.connect()
+            logger.info("Database connection established successfully")
             yield conn
+            logger.debug("Attempting to commit transaction")
             conn.commit()
+            logger.info("Transaction committed successfully")
         except Exception as e:
-            conn.rollback()
+            logger.error(f"Database operation failed: {str(e)}")
+            if conn:
+                logger.info("Rolling back transaction")
+                conn.rollback()
             raise
         finally:
-            conn.close()
+            if conn:
+                logger.debug("Closing database connection")
+                conn.close()
+                logger.info("Database connection closed")
 
     def _validate_schema(self):
         """Validate and initialize database schema if needed."""
