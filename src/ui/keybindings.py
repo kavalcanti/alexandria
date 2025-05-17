@@ -13,6 +13,9 @@ from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.layout import ScrollablePane
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.application import Application
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__)
 
 def create_keybindings(
     msg_buffer: Buffer,
@@ -34,6 +37,7 @@ def create_keybindings(
     - Shift+Up/Down: Scroll thinking window
     - Ctrl+O: Reset conversation
     - Ctrl+Space: Send message
+    - Ctrl+S: Save current LLM output
     
     Args:
         msg_buffer: Buffer for message input
@@ -171,5 +175,24 @@ def create_keybindings(
             
             msg_buffer.text = ""
             app.layout.focus(msg_window)
+
+    @kb.add('c-s')
+    def _(event) -> None:
+        """
+        Save the current LLM output to a markdown file.
+        
+        Args:
+            event: Key press event
+            
+        Returns:
+            None
+        """
+        saved_path = state_manager.save_current_output()
+        if saved_path:
+            state_manager.save_current_output()
+            logger.info(f"Output saved to: {saved_path}")
+        else:
+            msg_buffer.text = "No LLM output to save"
+        event.app.invalidate()
 
     return kb 

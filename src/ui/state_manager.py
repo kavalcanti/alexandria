@@ -10,6 +10,7 @@ from src.llm.services.conversation_service import ConversationService
 from src.llm.services.service_right_pane import RightPaneService
 from src.ui.markdown_formatter import MarkdownFormatter
 from src.logger import get_module_logger
+from src.utils.file_utils import save_llm_output
 
 logger = get_module_logger(__name__)
 
@@ -151,6 +152,10 @@ class StateManager:
         self.conversation_service.manage_context_window("assistant", message)
         logger.info(f"Appending assistant message: {message}")
 
+        # Save the output to a markdown file
+        saved_path = save_llm_output(message, thinking)
+        logger.info(f"Saved LLM output to: {saved_path}")
+
     def reset_state(self) -> None:
         """
         Reset both UI controls and create a new conversation manager instance.
@@ -178,4 +183,27 @@ class StateManager:
         Returns:
             FormattedText: Current formatted thinking text
         """
-        return self.thinking_control.text 
+        return self.thinking_control.text
+
+    def save_current_output(self) -> Optional[str]:
+        """
+        Save the most recent LLM output to a markdown file.
+        
+        Returns:
+            Optional[str]: Path to the saved file if there was output to save, None otherwise
+        """
+        # Get the most recent assistant message and thinking from the context window
+        for message in self.conversation_service.context_window:
+            if message.get('role') == 'assistant':
+                content = message.get('content', '')
+                # Get the most recent thinking message
+                thinking_messages = self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id)
+                thinking = thinking_messages[0] if thinking_messages else None
+                
+                # Save to file
+                saved_path = save_llm_output(content, thinking)
+                logger.info(f"Manually saved LLM output to: {saved_path}")
+                return saved_path
+        
+        logger.info("No assistant message found to save")
+        return None 
