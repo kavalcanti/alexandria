@@ -18,3 +18,5 @@ logs/*
 # Large files
 ai_models/*
 datasets/*
+
+.todo
