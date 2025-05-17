@@ -89,7 +89,7 @@ class ContextManager:
         Assistant reasoning messages are stored but not included in the context.
         """
         # Store the new message if it's a valid role
-        logger.debug(f"Managing context window: {role} {message}")
+        logger.debug(f"Managing context window: {'role':role, 'content':message}")
         if role == 'user':
                 message = self.prompt_controller.user_prompt_injector(message)
 
