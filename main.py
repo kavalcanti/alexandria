@@ -1,13 +1,14 @@
-from src.userland import application
-
-import src.logger as logger
+from dotenv import load_dotenv
 import argparse
 from prompt_toolkit.patch_stdout import patch_stdout
-from dotenv import load_dotenv
+import src.logger as logger
+from src.userland import application
 
 load_dotenv()
 
 logger.configure_logger()
+
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Alexandria - Your AI Assistant')

@@ -88,8 +88,6 @@ Our documentation is organized in the `docs` folder:
 ```
 alexandria/
 ├── ai_models/          # AI model storage and cache
-│   ├── cache/         # Model cache directory
-│   └── Qwen/          # Qwen model files
 ├── conf/              # Configuration files
 ├── datasets/          # Dataset storage
 ├── docs/              # Documentation
@@ -102,10 +100,10 @@ alexandria/
 │   ├── db/           # Database operations and models
 │   ├── llm/          # LLM integration and processing
 │   ├── ui/           # User interface components
-│   ├── utils/        # Utility functions
-│   ├── config.py     # Configuration management
 │   ├── logger.py     # Logging setup
 │   └── userland.py   # Core application logic
+├── .conda/            # Conda environment directory
+├── .venv/             # Virtual environment directory
 ├── main.py           # Application entry point
 ├── alexandria.sh     # Launch script
 ├── pyproject.toml    # Project metadata and configuration
