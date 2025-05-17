@@ -1,7 +1,11 @@
 import os
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-class LLMHandler:
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__) 
+
+class LLMController:
     def __init__(self):
 
         self.llm_name = os.getenv("HF_MODEL")
@@ -11,8 +15,9 @@ class LLMHandler:
         if not os.path.exists("ai_models"):
             os.makedirs("ai_models")
             os.makedirs(self.llm_download_cache_dir)
-
+        logger.info(f"LLMController initialized with model: {self.llm_name}")
         self.tokenizer, self.model = self._load_local_llm()
+        logger.info(f"LLMController initialized with tokenizer and model")
 
     def get_tokenizer(self):
         return self.tokenizer

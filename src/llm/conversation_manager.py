@@ -2,12 +2,12 @@
 import os
 from src.llm.context_manager import ContextManager
 from src.llm.service_llm import LLMService
-from src.llm.llm_controller import LLMHandler
+from src.llm.llm_controller import LLMController
 from src.llm.llm_db_cnvs_controller import ConversationsController
 from src.llm.llm_db_msg_controller import MessagesController
-import logging
+from src.logger import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__) 
 
 class ConversationManager:
     def __init__(self, context_window_len: int = 5, conversation_id: int = None, load_latest_system: bool = True):
@@ -20,9 +20,10 @@ class ConversationManager:
             conversation_id: Optional ID of existing conversation
             load_latest_system: Whether to load only latest system message
         """
+        logger.info("Initializing Conversation Manager")
         # Initialize shared dependencies
         self.conversations_controller = ConversationsController()
-        self.llm_handler = LLMHandler()
+        self.llm_handler = LLMController()
         self.messages_controller = MessagesController()
         # 
         # self.prompt_controller = LLMPromptController()
@@ -52,6 +53,8 @@ class ConversationManager:
             conversations_controller=self.conversations_controller,
             llm_handler=self.llm_handler
         )
+
+        logger.info(f"Conversation Manager initialized with conversation ID: {self.conversation_id}")
 
     def manage_context_window(self, role: str, message: str) -> None:
         """Delegate to context manager to manage context window."""

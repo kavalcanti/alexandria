@@ -1,10 +1,10 @@
 import os
 from src.llm.llm_db_cnvs_controller import ConversationsController
-from src.llm.llm_controller import LLMHandler
-import logging
+from src.llm.llm_controller import LLMController
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename='logs/llm.log', encoding='utf-8', level=logging.INFO)
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__) 
 
 class LLMService:
     def __init__(self, 
@@ -12,7 +12,7 @@ class LLMService:
                  conversation_id: int = None, 
                  load_latest_system: bool = True,
                  conversations_controller: ConversationsController = None,
-                 llm_handler: LLMHandler = None):
+                 llm_handler: LLMController = None):
         """
         Interacts with the context manager to get the context window and generate responses.
 
@@ -26,7 +26,7 @@ class LLMService:
         """
         # Load dependencies
         self.conversations_controller = conversations_controller or ConversationsController()
-        self.llm_handler = llm_handler or LLMHandler()
+        self.llm_handler = llm_handler or LLMController()
         self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
         
@@ -60,12 +60,16 @@ class LLMService:
         
         if window_len in [2, 3]:  # One exchange (user + assistant) with optional system message
             self._generate_conversation_title()
-
+        logger.info(f"Generating response.")
+        logger.debug(f"Context window: {context_window}")
         llm_answer, llm_thinking = self.llm_handler.generate_response_from_context(
             context_window, 
             thinking_model, 
             max_new_tokens
         )
+        logger.info(f"Response generated")
+        logger.debug(f"Thinking: {llm_thinking}")
+        logger.debug(f"Response: {llm_answer}")
       
         return llm_answer, llm_thinking
 

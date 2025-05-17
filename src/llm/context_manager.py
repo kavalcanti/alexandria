@@ -2,11 +2,10 @@
 import os
 from src.llm.llm_db_msg_controller import MessagesController
 from src.llm.llm_db_cnvs_controller import ConversationsController
-from src.llm.llm_controller import LLMHandler
-import logging
+from src.llm.llm_controller import LLMController
+from src.logger import get_module_logger
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(filename='logs/msg.log', encoding='utf-8', level=logging.INFO)
+logger = get_module_logger(__name__) 
 
 class ContextManager:
     def __init__(self, 
@@ -15,7 +14,7 @@ class ContextManager:
                  load_latest_system: bool = True,
                  messages_controller: MessagesController = None,
                  conversations_controller: ConversationsController = None,
-                 llm_handler: LLMHandler = None):
+                 llm_handler: LLMController = None):
         """
         Manages the context window and message history for conversations.
         Handles loading, updating, and maintaining the conversation context.
@@ -31,7 +30,7 @@ class ContextManager:
         self.context_window_len = context_window_len
         self.messages_controller = messages_controller or MessagesController() 
         self.conversations_controller = conversations_controller or ConversationsController()
-        self.llm_handler = llm_handler or LLMHandler()
+        self.llm_handler = llm_handler or LLMController()
         self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
 

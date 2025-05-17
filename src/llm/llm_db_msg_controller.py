@@ -4,7 +4,9 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from src.llm.db_connector import DatabaseStorage
 
-logger = logging.getLogger(__name__)
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__) 
 
 class MessagesController:
     def __init__(self):
@@ -54,41 +56,6 @@ class MessagesController:
                 
         except (ValueError, SQLAlchemyError) as e:
             logger.error(f"Failed to insert message: {str(e)}")
-            raise
-
-    def insert_single_conversation(self, conversation_id: int, message_count: int = 0, title: str = "", title_embedding: list[float] = None):
-        """
-        Insert a single conversation record into the database.
-
-        Args:
-            conversation_id: The ID for the new conversation
-            message_count: Initial message count
-            title: The title of the conversation
-            title_embedding: Vector embedding for the title
-            
-        Raises:
-            ValueError: If any input validation fails
-            SQLAlchemyError: If database operation fails
-        """
-        try:
-            # Validate all inputs
-            validated_id = self.validator.validate_id(conversation_id)
-            validated_count = self.validator.validate_token_count(message_count)
-            validated_title = self.validator.sanitize_string(title)
-            validated_embedding = self.validator.validate_vector(title_embedding) if title_embedding else None
-
-            insert_stmt = self.conversations_table.insert().values(
-                id=validated_id,
-                message_count=validated_count,
-                title=validated_title,
-                title_embedding=validated_embedding,
-            )
-
-            with self.db_storage.get_connection() as conn:
-                conn.execute(insert_stmt)
-                
-        except (ValueError, SQLAlchemyError) as e:
-            logger.error(f"Failed to insert conversation: {str(e)}")
             raise
 
     def get_context_window_messages(self, conversation_id: int, window_size: int) -> list[dict]:
