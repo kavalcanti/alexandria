@@ -6,6 +6,7 @@ from src.llm.llm_controller import LLMController
 from src.llm.llm_db_cnvs_controller import ConversationsController
 from src.llm.llm_db_msg_controller import MessagesController
 from src.logger import get_module_logger
+from src.llm.db_connector import DatabaseStorage
 
 logger = get_module_logger(__name__) 
 
@@ -22,9 +23,10 @@ class ConversationManager:
         """
         logger.info("Initializing Conversation Manager")
         # Initialize shared dependencies
-        self.conversations_controller = ConversationsController()
+        self.db_storage = DatabaseStorage()
+        self.conversations_controller = ConversationsController(self.db_storage)
+        self.messages_controller = MessagesController(self.db_storage)
         self.llm_handler = LLMController()
-        self.messages_controller = MessagesController()
         # 
         # self.prompt_controller = LLMPromptController()
         # Initialize conversation ID
@@ -42,6 +44,7 @@ class ConversationManager:
             conversation_id=self.conversation_id,
             load_latest_system=load_latest_system,
             messages_controller=self.messages_controller,
+            conversations_controller=self.conversations_controller,
             llm_handler=self.llm_handler
         )
 

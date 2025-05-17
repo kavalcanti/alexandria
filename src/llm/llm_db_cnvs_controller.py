@@ -7,10 +7,10 @@ from src.llm.db_connector import DatabaseStorage
 logger = logging.getLogger(__name__)
 
 class ConversationsController:
-    def __init__(self):
+    def __init__(self, db_storage: DatabaseStorage):
         """Controller for conversations table."""
         try:
-            self.db_storage = DatabaseStorage()
+            self.db_storage = db_storage or DatabaseStorage()
             self.validator = self.db_storage.validator
 
             # Initialize table references directly from imported models

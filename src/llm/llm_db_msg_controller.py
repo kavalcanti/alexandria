@@ -9,10 +9,10 @@ from src.logger import get_module_logger
 logger = get_module_logger(__name__) 
 
 class MessagesController:
-    def __init__(self):
+    def __init__(self, db_storage: DatabaseStorage):
         """Controller for messages table."""
         try:
-            self.db_storage = DatabaseStorage()
+            self.db_storage = db_storage or DatabaseStorage()
             self.validator = self.db_storage.validator
 
             # Initialize table references directly from imported models

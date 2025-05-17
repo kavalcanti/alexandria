@@ -36,7 +36,7 @@ class LLMService:
             self._context_window = []
             logger.info("No context manager provided, using internal context window")
         else:
-            logger.info(f"Using context manager's context window: {self.context_manager.context_window}")
+            logger.info(f"Context manager's context window loaded")
         
         return None
 

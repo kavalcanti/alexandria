@@ -75,7 +75,7 @@ def create_layout_components():
 
     # Status bars
     top_bar_text = [
-        ("class:bold", " Alexandria - Terminal-based Local LLM Interface "),
+        ("class:bold", " Alexandria - Terminal-based Local LLM Inference "),
     ]
 
     bottom_bar_text = [

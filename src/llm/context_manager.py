@@ -28,15 +28,15 @@ class ContextManager:
         """
         # Load dependencies
         self.context_window_len = context_window_len
-        self.messages_controller = messages_controller or MessagesController() 
-        self.conversations_controller = conversations_controller or ConversationsController()
-        self.llm_handler = llm_handler or LLMController()
+        self.messages_controller = messages_controller
+        self.conversations_controller = conversations_controller
+        self.llm_handler = llm_handler
         self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
 
         # Load initial context window from database
         self._context_window = self._load_context_window()
-        logger.info(f"Context window: {self._context_window}")
+        logger.debug(f"Context window: {self._context_window}")
 
         return None
 

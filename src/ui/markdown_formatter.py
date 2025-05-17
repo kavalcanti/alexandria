@@ -71,6 +71,7 @@ class MarkdownFormatter:
                 
             elif token.type == 'paragraph_open':
                 in_paragraph = True
+                formatted_text.append(('', '\n'))
                 
             elif token.type == 'paragraph_close':
                 in_paragraph = False
