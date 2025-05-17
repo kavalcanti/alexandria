@@ -87,24 +87,30 @@ Our documentation is organized in the `docs` folder:
 
 ```
 alexandria/
-├── src/
-│   ├── llm/            # LLM integration and processing
-│   ├── ui/             # User interface components
-│   ├── db/             # Database operations and models
-│   └── userland.py     # Core application logic
-├── docs/               # Documentation
-│   ├── UserGuide.md    # User manual
-│   ├── CONTRIBUTING.md # Contribution guidelines
-│   ├── LICENSE.md      # MIT License
+├── ai_models/          # AI model storage and cache
+│   ├── cache/         # Model cache directory
+│   └── Qwen/          # Qwen model files
+├── conf/              # Configuration files
+├── datasets/          # Dataset storage
+├── docs/              # Documentation
+│   ├── UserGuide.md   # User manual
+│   ├── CONTRIBUTING.md# Contribution guidelines
+│   ├── LICENSE.md     # MIT License
 │   └── TODOs.md       # Development roadmap
-├── conf/               # Configuration files
-├── ai_models/          # Local model storage
-├── datasets/           # Dataset storage
-├── main.py            # Application entry point
-├── alexandria.sh      # Launch script
-├── pyproject.toml     # Project metadata and configuration
-├── requirements.txt   # Project dependencies
-└── uv.lock           # Dependency lock file
+├── logs/              # Application logs
+├── src/               # Source code
+│   ├── db/           # Database operations and models
+│   ├── llm/          # LLM integration and processing
+│   ├── ui/           # User interface components
+│   ├── utils/        # Utility functions
+│   ├── config.py     # Configuration management
+│   ├── logger.py     # Logging setup
+│   └── userland.py   # Core application logic
+├── main.py           # Application entry point
+├── alexandria.sh     # Launch script
+├── pyproject.toml    # Project metadata and configuration
+├── requirements.txt  # Project dependencies
+└── uv.lock          # Dependency lock file
 ```
 
 ## Technical Stack
