@@ -1,7 +1,7 @@
 """
-Main conversation service. Facade for the conversation services.
+Main conversation service. Facade for the conversation managers and controllers.
 
-Bootstraps the backend and manages conversation services and their dependencies.
+Bootstraps the backend and manages conversation managers and controllers.
 Acts as a facade for the conversation functionality.
 
 Provides entry points for the UI

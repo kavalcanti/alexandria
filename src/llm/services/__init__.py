@@ -1,5 +1,5 @@
 """
-Services for the LLM.
+Services call managers and controllers to serve content to the ui.
 """
 
 from .conversation_service import ConversationService
