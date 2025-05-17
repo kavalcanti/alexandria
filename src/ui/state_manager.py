@@ -4,8 +4,8 @@ UI state management and context window integration.
 from typing import Optional, List, Dict, Tuple
 from prompt_toolkit.layout.controls import FormattedTextControl
 from src.llm.services.conversation_service import ConversationService
-from src.ui.markdown_formatter import MarkdownFormatter
 from src.llm.services.service_right_pane import RightPaneService
+from src.ui.markdown_formatter import MarkdownFormatter
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__)

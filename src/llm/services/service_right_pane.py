@@ -1,4 +1,5 @@
-"""Service for the right pane of the UI.
+"""
+Service for the right pane of the UI.
 
 Handles the display of the thinking messages. Future features will include chained llm calls.
 """
