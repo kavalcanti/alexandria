@@ -88,7 +88,7 @@ class MessagesController:
                 )
                 .where(
                     self.messages_table.c.conversation_id == validated_id,
-                    self.messages_table.c.role.in_(['user', 'assistant', 'system'])
+                    self.messages_table.c.role.in_(['user', 'assistant'])
                 )
                 .order_by(self.messages_table.c.timestamp.desc())
                 .limit(validated_size)
@@ -111,4 +111,18 @@ class MessagesController:
 
         except (ValueError, SQLAlchemyError) as e:
             logger.error(f"Failed to fetch context window messages: {str(e)}")
+            raise
+
+    def get_thinking_messages(self, conversation_id: int) -> list[dict]:
+        """
+        Fetch the thinking messages for the conversation.
+        """
+        try:
+            validated_id = self.validator.validate_id(conversation_id)
+            select_stmt = select(self.messages_table.c.message).where(self.messages_table.c.conversation_id == validated_id, self.messages_table.c.role == 'assistant-reasoning')
+            with self.db_storage.get_connection() as conn:
+                result = conn.execute(select_stmt)
+                return [row.message for row in result]
+        except (ValueError, SQLAlchemyError) as e:
+            logger.error(f"Failed to fetch thinking messages: {str(e)}")
             raise

@@ -5,6 +5,10 @@ from typing import Optional, List, Dict, Tuple
 from prompt_toolkit.layout.controls import FormattedTextControl
 from src.llm.conversation_manager import ConversationManager
 from src.ui.markdown_formatter import MarkdownFormatter
+from src.llm.service_right_pane import RightPaneService
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__)
 
 FormattedText = List[Tuple[str, str]]
 
@@ -27,12 +31,13 @@ class StateManager:
         self.thinking_control = thinking_control
         self.conversation_manager = conversation_manager
         self.markdown_formatter = MarkdownFormatter()
-        
+        self.right_pane_service = RightPaneService(self.conversation_manager.messages_controller)
         # Initialize empty state
         self.chat_control.text = []
         self.thinking_control.text = []
         
         # Load initial conversation state
+        self._load_right_pane_messages()
         self._load_initial_conversation()
         
     def _format_message(self, role: str, content: str) -> FormattedText:
@@ -77,15 +82,24 @@ class StateManager:
             role = message.get('role')
             content = message.get('content', '')
             
-            formatted_msg = self._format_message(role, content)
-            if role == 'assistant-reasoning':
-                thinking_text.extend(formatted_msg)
-            else:
+            if role != 'system':
+                formatted_msg = self._format_message(role, content)
                 chat_text.extend(formatted_msg)
         
         # Update UI controls with messages in reverse chronological order
         self.chat_control.text = chat_text
+
+    def _load_right_pane_messages(self) -> None:
+        """
+        Load the right pane messages for the conversation.
+        """
+
+        thinking_text: FormattedText = []
+        for message in self.right_pane_service.get_thinking_messages(self.conversation_manager.conversation_id):
+            formatted_msg = self._format_message('assistant-reasoning', message)
+            thinking_text.extend(formatted_msg)
         self.thinking_control.text = thinking_text
+        logger.info(f"Right pane messages: {thinking_text}")
         
     def append_user_message(self, message: str) -> None:
         """
