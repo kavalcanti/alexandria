@@ -99,6 +99,8 @@ class ContextManager:
                 self.llm_controller.get_token_count(message)  # Get token count
             )
             # Only refresh context window for messages that should be in it
+            if role == 'user':
+                message = self.prompt_controller.user_prompt_injector(message)
             
             if role in ['user', 'assistant', 'system']:
                 self.conversations_controller.update_message_count(self.conversation_id)
