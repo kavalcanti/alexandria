@@ -4,7 +4,6 @@ Keyboard bindings for the Alexandria UI.
 import asyncio
 from prompt_toolkit.application import get_app
 from prompt_toolkit.key_binding import KeyBindings
-from src.ui.state_manager import StateManager
 
 def create_keybindings(
     msg_buffer,
@@ -13,7 +12,8 @@ def create_keybindings(
     chat_window,
     thinking_window,
     msg_window,
-    handler,
+    conversation_manager,
+    state_manager,
     application=None
 ):
     """
@@ -26,17 +26,14 @@ def create_keybindings(
         chat_window: ScrollablePane for chat
         thinking_window: ScrollablePane for thinking
         msg_window: Window for message input
-        handler: ConversationManager instance
+        conversation_manager: ConversationManager instance
         application: Optional Application instance for focus management
     
     Returns:
         KeyBindings object with all necessary bindings
     """
     kb = KeyBindings()
-    
-    # Initialize state manager
-    state_manager = StateManager(chat_formatted_text, thinking_formatted_text, handler)
-
+ 
     @kb.add('c-q')
     def _(event):
         """Exit the application."""
@@ -87,7 +84,7 @@ def create_keybindings(
             app.invalidate()
 
             # Generate and add AI response
-            ai_answer, ai_thinking = await asyncio.to_thread(handler.generate_chat_response)
+            ai_answer, ai_thinking = await asyncio.to_thread(conversation_manager.generate_chat_response)
             state_manager.append_assistant_message(ai_answer, ai_thinking)
             app.invalidate()
             

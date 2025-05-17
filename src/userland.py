@@ -41,6 +41,12 @@ def create_application(conversation_id=None):
         conversation_id=conversation_id  # None by default, which will create a new conversation
     )
 
+    state_manager = StateManager(
+        chat_formatted_text,
+        thinking_formatted_text,
+        conversation_manager
+    )
+
     # Create application instance
     app = Application(
         layout=Layout(root_container, focused_element=msg_window),
@@ -59,6 +65,7 @@ def create_application(conversation_id=None):
         thinking_window,
         msg_window,
         conversation_manager,
+        state_manager,
         application=app
     )
 
