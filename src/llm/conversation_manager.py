@@ -1,9 +1,10 @@
 """Manages conversation services and their dependencies."""
 import os
-from src.llm.service_msg import MSGService
+from src.llm.context_manager import ContextManager
 from src.llm.service_llm import LLMService
 from src.llm.llm_controller import LLMHandler
-from src.llm.llm_db_controller import DatabaseStorage
+from src.llm.llm_db_cnvs_controller import ConversationsController
+from src.llm.llm_db_msg_controller import MessagesController
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,39 +21,41 @@ class ConversationManager:
             load_latest_system: Whether to load only latest system message
         """
         # Initialize shared dependencies
-        self.db_storage = DatabaseStorage()
+        self.conversations_controller = ConversationsController()
         self.llm_handler = LLMHandler()
-        
+        self.messages_controller = MessagesController()
+        # 
+        # self.prompt_controller = LLMPromptController()
         # Initialize conversation ID
         if conversation_id is None:
-            self.conversation_id = self.db_storage.get_next_conversation_id()
-            self.db_storage.insert_single_conversation(self.conversation_id)
+            self.conversation_id = self.conversations_controller.get_next_conversation_id()
+            self.conversations_controller.insert_single_conversation(self.conversation_id)
         else:
             self.conversation_id = conversation_id
-            if not self.db_storage.conversation_exists(self.conversation_id):
-                self.db_storage.insert_single_conversation(self.conversation_id)
+            if not self.conversations_controller.conversation_exists(self.conversation_id):
+                self.conversations_controller.insert_single_conversation(self.conversation_id)
 
-        # Initialize message service first as the source of truth for context window
-        self.msg_service = MSGService(
+        # Initialize context manager first as the source of truth for context window
+        self.context_manager = ContextManager(
             context_window_len=context_window_len,
             conversation_id=self.conversation_id,
             load_latest_system=load_latest_system,
-            db_storage=self.db_storage,
+            messages_controller=self.messages_controller,
             llm_handler=self.llm_handler
         )
 
-        # Initialize LLM service with reference to message service
+        # Initialize LLM service with reference to context manager
         self.llm_service = LLMService(
-            msg_service=self.msg_service,
+            msg_service=self.context_manager,
             conversation_id=self.conversation_id,
             load_latest_system=load_latest_system,
-            db_storage=self.db_storage,
+            conversations_controller=self.conversations_controller,
             llm_handler=self.llm_handler
         )
 
     def manage_context_window(self, role: str, message: str) -> None:
-        """Delegate to message service to manage context window."""
-        self.msg_service.manage_context_window(role, message)
+        """Delegate to context manager to manage context window."""
+        self.context_manager.manage_context_window(role, message)
 
     def generate_chat_response(self, thinking_model: bool = True, max_new_tokens: int = 8096):
         """Delegate to LLM service."""
@@ -60,5 +63,5 @@ class ConversationManager:
 
     @property
     def context_window(self):
-        """Access the context window from message service."""
-        return self.msg_service.context_window
+        """Access the context window from context manager."""
+        return self.context_manager.context_window

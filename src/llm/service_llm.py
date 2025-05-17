@@ -1,5 +1,5 @@
 import os
-from src.llm.llm_db_controller import *
+from src.llm.llm_db_cnvs_controller import ConversationsController
 from src.llm.llm_controller import LLMHandler
 import logging
 
@@ -11,32 +11,32 @@ class LLMService:
                  msg_service = None,
                  conversation_id: int = None, 
                  load_latest_system: bool = True,
-                 db_storage: DatabaseStorage = None,
+                 conversations_controller: ConversationsController = None,
                  llm_handler: LLMHandler = None):
         """
-        Interacts with the message service to get the context window and generate responses.
+        Interacts with the context manager to get the context window and generate responses.
 
         Params:
-            msg_service: Optional message service instance that manages the context window.
+            msg_service: Optional ContextManager instance that manages the context window.
                        If None, the service will maintain its own context window state.
             conversation_id: int id of the conversation. If None, creates a new conversation.
             load_latest_system: bool whether to load only the latest system message (True) or all system messages (False)
-            db_storage: Optional DatabaseStorage instance for dependency injection
+            conversations_controller: Optional ConversationsController instance for dependency injection
             llm_handler: Optional LLMHandler instance for dependency injection
         """
         # Load dependencies
-        self.db_storage = db_storage or DatabaseStorage()
+        self.conversations_controller = conversations_controller or ConversationsController()
         self.llm_handler = llm_handler or LLMHandler()
         self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
         
-        # Store reference to message service or initialize own context window
-        self.msg_service = msg_service
-        if self.msg_service is None:
+        # Store reference to context manager or initialize own context window
+        self.context_manager = msg_service
+        if self.context_manager is None:
             self._context_window = []
-            logger.info("No message service provided, using internal context window")
+            logger.info("No context manager provided, using internal context window")
         else:
-            logger.info(f"Using message service's context window: {self.msg_service.context_window}")
+            logger.info(f"Using context manager's context window: {self.context_manager.context_window}")
         
         return None
 
@@ -53,7 +53,7 @@ class LLMService:
             tuple: (llm_answer, llm_thinking) containing the response and reasoning
         """
         # Get context window from appropriate source
-        context_window = self.msg_service.context_window if self.msg_service else self._context_window
+        context_window = self.context_manager.context_window if self.context_manager else self._context_window
 
         # Check context window length for title generation
         window_len = len(context_window)
@@ -82,7 +82,7 @@ class LLMService:
             None, but updates the conversation title in the database
         """
         # Get context window from appropriate source
-        context_window = self.msg_service.context_window if self.msg_service else self._context_window
+        context_window = self.context_manager.context_window if self.context_manager else self._context_window
         window_len = len(context_window)
         
         if window_len not in [2, 3]:  # Ensure we have exactly one exchange (with optional system message)
@@ -99,17 +99,17 @@ class LLMService:
         title = self.llm_handler.generate_response_from_context(title_prompt, thinking_model=False, max_new_tokens=max_new_tokens)
         logger.info(f"Title: {title}")
         # Update the conversation title in the database
-        self.db_storage.update_conversation_title(self.conversation_id, title)
+        self.conversations_controller.update_conversation_title(self.conversation_id, title)
 
     @property
     def context_window(self):
         """Get the current context window."""
-        return self.msg_service.context_window if self.msg_service else self._context_window
+        return self.context_manager.context_window if self.context_manager else self._context_window
 
     @context_window.setter
     def context_window(self, value):
         """Update the context window."""
-        if self.msg_service:
-            self.msg_service.context_window = value
+        if self.context_manager:
+            self.context_manager.context_window = value
         else:
             self._context_window = value
