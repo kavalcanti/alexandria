@@ -1,6 +1,10 @@
 """
 Layout components for the Alexandria UI.
+
+This module defines the UI layout structure and styling for the Alexandria application,
+including the chat window, thinking pane, and status bars.
 """
+from typing import Dict, Tuple
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.layout import ScrollablePane
 from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign
@@ -9,7 +13,13 @@ from prompt_toolkit.layout.dimension import Dimension
 from prompt_toolkit.styles import Style
 
 def create_markdown_style() -> Style:
-    """Create style definitions for Markdown elements."""
+    """
+    Create style definitions for Markdown elements in the UI.
+    
+    Returns:
+        Style: A prompt_toolkit Style object containing color and formatting definitions
+              for various Markdown elements and UI components
+    """
     return Style.from_dict({
         # Headers
         'heading-1': 'bold underline #00aaaa',  # bright blue
@@ -35,12 +45,27 @@ def create_markdown_style() -> Style:
         'shortcut': 'bold #ffaa00',  # orange
     })
 
-def create_layout_components():
+def create_layout_components() -> Tuple[HSplit, Buffer, FormattedTextControl, FormattedTextControl, ScrollablePane, ScrollablePane, Window, Style]:
     """
     Create and return the main UI layout components.
     
+    This function creates all necessary UI components including:
+    - Message input buffer and window
+    - Chat display window with scrolling
+    - Thinking process display window with scrolling
+    - Status bars with shortcuts
+    - Visual separators and margins
+    
     Returns:
-        tuple: Contains all necessary layout components and controls
+        Tuple containing:
+        - root_container (HSplit): The root UI container
+        - msg_buffer (Buffer): Buffer for message input
+        - chat_formatted_text (FormattedTextControl): Control for chat display
+        - thinking_formatted_text (FormattedTextControl): Control for thinking display
+        - chat_window (ScrollablePane): Scrollable chat window
+        - thinking_window (ScrollablePane): Scrollable thinking window
+        - msg_window (Window): Message input window
+        - style (Style): UI style definitions
     """
     # Text controls and buffers
     msg_buffer = Buffer(multiline=True)
@@ -92,20 +117,6 @@ def create_layout_components():
         ("class:shortcut", "Shift+↑/↓"),
         ("class:bold", ": Thoughts scroll"),
     ]
-
-    # # Main chat composite
-    # main_chat_composite = VSplit([
-    #     side_margin,
-    #     chat_window,
-    #     scroll_margin
-    # ])
-
-    # # Message window composite
-    # msg_window_composite = VSplit([
-    #     side_margin,
-    #     msg_window,
-    #     side_margin
-    # ])
 
     # Chat side composite
     chat_side_composite = HSplit([

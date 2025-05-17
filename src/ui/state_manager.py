@@ -1,7 +1,10 @@
 """
 UI state management and context window integration.
+
+This module handles the state management for the Alexandria UI, including chat history,
+thinking process display, and conversation context management.
 """
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, TypeAlias
 from prompt_toolkit.layout.controls import FormattedTextControl
 from src.llm.services.conversation_service import ConversationService
 from src.llm.services.service_right_pane import RightPaneService
@@ -10,7 +13,8 @@ from src.logger import get_module_logger
 
 logger = get_module_logger(__name__)
 
-FormattedText = List[Tuple[str, str]]
+# Type alias for formatted text used in prompt_toolkit
+FormattedText: TypeAlias = List[Tuple[str, str]]
 
 class StateManager:
     def __init__(
@@ -18,14 +22,17 @@ class StateManager:
         chat_control: FormattedTextControl,
         thinking_control: FormattedTextControl,
         conversation_service: ConversationService
-    ):
+    ) -> None:
         """
         Initialize the state manager.
         
         Args:
-            chat_control: FormattedTextControl for chat display
-            thinking_control: FormattedTextControl for thinking display
-            conversation_service: ConversationService instance
+            chat_control: Control for displaying chat messages in the UI
+            thinking_control: Control for displaying thinking/reasoning process in the UI
+            conversation_service: Service handling conversation state and context
+        
+        Returns:
+            None
         """
         self.chat_control = chat_control
         self.thinking_control = thinking_control
@@ -46,11 +53,11 @@ class StateManager:
         Format a message for display in the UI with Markdown support.
         
         Args:
-            role: Message role ('user', 'assistant', 'system')
-            content: Message content
+            role: Message role identifier ('user', 'assistant', 'system', 'assistant-reasoning')
+            content: Raw message content to be formatted
             
         Returns:
-            Formatted message with Markdown rendering
+            FormattedText: Formatted message with role header, Markdown rendering, and spacing
         """
         role_display = {
             'user': 'You',
@@ -74,9 +81,11 @@ class StateManager:
         """
         Load the current conversation from the context window into the UI.
         Formats and displays all messages in reverse chronological order.
+        
+        Returns:
+            None
         """
         chat_text: FormattedText = []
-        thinking_text: FormattedText = []
         
         # Get messages from context window in reverse order
         for message in reversed(self.conversation_service.context_window):
@@ -92,9 +101,12 @@ class StateManager:
 
     def _load_right_pane_messages(self) -> None:
         """
-        Load the right pane messages for the conversation.
+        Load the right pane messages for the conversation, displaying the AI's
+        thinking process and reasoning.
+        
+        Returns:
+            None
         """
-
         thinking_text: FormattedText = []
         for message in self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id):
             formatted_msg = self._format_message('assistant-reasoning', message)
@@ -107,7 +119,10 @@ class StateManager:
         Append a user message to both UI and context window.
         
         Args:
-            message: The user's message
+            message: The user's message content to be added
+            
+        Returns:
+            None
         """
         formatted_message = self._format_message('user', message)
         self.chat_control.text = formatted_message + self.chat_control.text
@@ -115,12 +130,15 @@ class StateManager:
         
     def append_assistant_message(self, message: str, thinking: Optional[str] = None) -> None:
         """
-        Append an assistant message to UI only.
+        Append an assistant message to UI and optionally add thinking process.
         The message is already added to the context window by _parse_llm_response.
         
         Args:
-            message: The assistant's response
-            thinking: Optional thinking/reasoning process
+            message: The assistant's response content
+            thinking: Optional thinking/reasoning process to display in right pane
+            
+        Returns:
+            None
         """
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
@@ -133,17 +151,31 @@ class StateManager:
         self.conversation_service.manage_context_window("assistant", message)
         logger.info(f"Appending assistant message: {message}")
 
-
     def reset_state(self) -> None:
-        """Reset both UI controls and create a new conversation manager instance."""
+        """
+        Reset both UI controls and create a new conversation manager instance.
+        
+        Returns:
+            None
+        """
         self.chat_control.text = []
         self.thinking_control.text = []
         self.conversation_service = ConversationService()
         
     def get_chat_text(self) -> FormattedText:
-        """Get current chat text."""
+        """
+        Get current chat text.
+        
+        Returns:
+            FormattedText: Current formatted chat text
+        """
         return self.chat_control.text
         
     def get_thinking_text(self) -> FormattedText:
-        """Get current thinking text."""
+        """
+        Get current thinking text.
+        
+        Returns:
+            FormattedText: Current formatted thinking text
+        """
         return self.thinking_control.text 

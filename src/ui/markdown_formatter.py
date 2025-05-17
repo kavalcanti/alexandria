@@ -1,23 +1,40 @@
 """
 Markdown formatting support for Alexandria UI.
+
+This module provides Markdown parsing and formatting capabilities for the Alexandria UI,
+including syntax highlighting for code blocks and support for common Markdown elements.
 """
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, TypeAlias
 from markdown_it import MarkdownIt
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name, TextLexer
 from pygments.formatters import Terminal256Formatter
 from pygments.util import ClassNotFound
 
-
-FormattedText = List[Tuple[str, str]]
+# Type alias for formatted text used in prompt_toolkit
+FormattedText: TypeAlias = List[Tuple[str, str]]
 
 class MarkdownFormatter:
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initialize the Markdown formatter with CommonMark parser.
+        
+        Returns:
+            None
+        """
         self.md = MarkdownIt('commonmark')
         self._current_style = []
         
     def convert_to_formatted_text(self, markdown_text: str) -> FormattedText:
-        """Convert markdown text to prompt_toolkit formatted text."""
+        """
+        Convert markdown text to prompt_toolkit formatted text.
+        
+        Args:
+            markdown_text: Raw markdown text to be formatted
+            
+        Returns:
+            FormattedText: List of (style, text) tuples for prompt_toolkit rendering
+        """
         if not markdown_text:
             return []
             
@@ -28,11 +45,31 @@ class MarkdownFormatter:
         return result
     
     def _get_current_style(self) -> str:
-        """Get the current composite style from the stack."""
+        """
+        Get the current composite style from the style stack.
+        
+        Returns:
+            str: Space-separated string of current style classes, or empty string if no styles
+        """
         return ' '.join(self._current_style) if self._current_style else ''
     
     def _process_tokens(self, tokens) -> FormattedText:
-        """Process markdown-it tokens into formatted text."""
+        """
+        Process markdown-it tokens into formatted text.
+        
+        Handles various Markdown elements including:
+        - Headers (levels 1-6)
+        - Code blocks and inline code
+        - Bold and italic text
+        - Lists and list items
+        - Paragraphs and line breaks
+        
+        Args:
+            tokens: List of markdown-it tokens to process
+            
+        Returns:
+            FormattedText: List of (style, text) tuples for prompt_toolkit rendering
+        """
         formatted_text: FormattedText = []
         in_paragraph = False
         in_list_item = False
@@ -84,7 +121,6 @@ class MarkdownFormatter:
                 
             elif token.type == 'bullet_list_close':
                 self._current_style.pop()
-                # formatted_text.append(('', '\n'))
                 
             elif token.type == 'list_item_open':
                 in_list_item = True
@@ -116,7 +152,16 @@ class MarkdownFormatter:
         return formatted_text
     
     def _format_code_block(self, code: str, language: str) -> FormattedText:
-        """Format a code block with syntax highlighting."""
+        """
+        Format a code block with syntax highlighting.
+        
+        Args:
+            code: The code content to be highlighted
+            language: The programming language identifier for syntax highlighting
+            
+        Returns:
+            FormattedText: List of (style, text) tuples containing the highlighted code
+        """
         try:
             if language:
                 lexer = get_lexer_by_name(language)
