@@ -131,7 +131,7 @@ class ContextManager:
             None
         """
         # Store the new message if it's a valid role
-        logger.debug(f"Managing context window: {'role':role, 'content':message}")
+        logger.debug(f"Managing context window: 'role':{role}, 'content':{message}")
         if role == 'user':
                 message = self.prompt_controller.user_prompt_injector(message)
 
