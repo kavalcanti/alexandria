@@ -57,7 +57,7 @@ class LLMManager:
         # Check context window length for title generation
         window_len = len(context_window)
         
-        if window_len in [2, 3]:  # One exchange (user + assistant) with optional system message
+        if window_len in [3, 4]:  # One exchange (user + assistant) with optional system message
             self._generate_conversation_title()
         logger.info(f"Generating response.")
         logger.debug(f"Context window: {context_window}")
@@ -85,7 +85,7 @@ class LLMManager:
             None, but updates the conversation title in the database
         """
         # Get context window from appropriate source
-        context_window = self.context_manager.context_window if self.context_manager else self._context_window
+        context_window = self.context_manager.context_window[-2:] if self.context_manager else self._context_window
         window_len = len(context_window)
         
         if window_len not in [2, 3]:  # Ensure we have exactly one exchange (with optional system message)
@@ -100,9 +100,10 @@ class LLMManager:
         ] + context_window
 
         title = self.llm_controller.generate_response_from_context(title_prompt, thinking_model=False, max_new_tokens=max_new_tokens)
-        logger.info(f"Title: {title}")
+        logger.debug(f"Title: {title[0]}")
+        logger.info(f"context_window: {context_window}")
         # Update the conversation title in the database
-        self.conversations_controller.update_conversation_title(self.conversation_id, title)
+        self.conversations_controller.update_conversation_title(self.conversation_id, title[0])
 
     @property
     def context_window(self):

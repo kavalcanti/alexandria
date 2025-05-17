@@ -40,11 +40,8 @@ class DatabaseStorage:
         try:
             logger.debug("Attempting to establish database connection")
             conn = self.engine.connect()
-            logger.info("Database connection established successfully")
             yield conn
-            logger.debug("Attempting to commit transaction")
             conn.commit()
-            logger.info("Transaction committed successfully")
         except Exception as e:
             logger.error(f"Database operation failed: {str(e)}")
             if conn:
@@ -55,7 +52,6 @@ class DatabaseStorage:
             if conn:
                 logger.debug("Closing database connection")
                 conn.close()
-                logger.info("Database connection closed")
 
     def _validate_schema(self):
         """Validate and initialize database schema if needed."""
