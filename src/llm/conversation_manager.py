@@ -1,10 +1,18 @@
-"""Manages conversation services and their dependencies."""
+"""
+Main conversation manager. Facade for the conversation services.
+
+Bootstraps the backend and manages conversation services and their dependencies.
+Acts as a facade for the conversation functionality.
+
+Provides entry points for the UI
+"""
 import os
 from src.llm.context_manager import ContextManager
 from src.llm.service_llm import LLMService
 from src.llm.llm_controller import LLMController
 from src.llm.llm_db_cnvs_controller import ConversationsController
 from src.llm.llm_db_msg_controller import MessagesController
+from src.llm.prompt_manager import LLMPromptController
 from src.logger import get_module_logger
 from src.llm.db_connector import DatabaseStorage
 
@@ -26,9 +34,8 @@ class ConversationManager:
         self.db_storage = DatabaseStorage()
         self.conversations_controller = ConversationsController(self.db_storage)
         self.messages_controller = MessagesController(self.db_storage)
-        self.llm_handler = LLMController()
-        # 
-        # self.prompt_controller = LLMPromptController()
+        self.llm_controller = LLMController()
+        self.prompt_controller = LLMPromptController()
         # Initialize conversation ID
         if conversation_id is None:
             self.conversation_id = self.conversations_controller.get_next_conversation_id()
@@ -45,7 +52,8 @@ class ConversationManager:
             load_latest_system=load_latest_system,
             messages_controller=self.messages_controller,
             conversations_controller=self.conversations_controller,
-            llm_handler=self.llm_handler
+            llm_controller=self.llm_controller,
+            prompt_controller=self.prompt_controller
         )
 
         # Initialize LLM service with reference to context manager
@@ -54,7 +62,7 @@ class ConversationManager:
             conversation_id=self.conversation_id,
             load_latest_system=load_latest_system,
             conversations_controller=self.conversations_controller,
-            llm_handler=self.llm_handler
+            llm_controller=self.llm_controller
         )
 
         logger.info(f"Conversation Manager initialized with conversation ID: {self.conversation_id}")

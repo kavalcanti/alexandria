@@ -12,7 +12,7 @@ class LLMService:
                  conversation_id: int = None, 
                  load_latest_system: bool = True,
                  conversations_controller: ConversationsController = None,
-                 llm_handler: LLMController = None):
+                 llm_controller: LLMController = None):
         """
         Interacts with the context manager to get the context window and generate responses.
 
@@ -26,7 +26,7 @@ class LLMService:
         """
         # Load dependencies
         self.conversations_controller = conversations_controller or ConversationsController()
-        self.llm_handler = llm_handler or LLMController()
+        self.llm_controller = llm_controller or LLMController()
         self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
         
@@ -62,7 +62,7 @@ class LLMService:
             self._generate_conversation_title()
         logger.info(f"Generating response.")
         logger.debug(f"Context window: {context_window}")
-        llm_answer, llm_thinking = self.llm_handler.generate_response_from_context(
+        llm_answer, llm_thinking = self.llm_controller.generate_response_from_context(
             context_window, 
             thinking_model, 
             max_new_tokens
@@ -100,7 +100,7 @@ class LLMService:
             }
         ] + context_window
 
-        title = self.llm_handler.generate_response_from_context(title_prompt, thinking_model=False, max_new_tokens=max_new_tokens)
+        title = self.llm_controller.generate_response_from_context(title_prompt, thinking_model=False, max_new_tokens=max_new_tokens)
         logger.info(f"Title: {title}")
         # Update the conversation title in the database
         self.conversations_controller.update_conversation_title(self.conversation_id, title)

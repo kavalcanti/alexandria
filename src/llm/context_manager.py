@@ -1,8 +1,9 @@
 """Manages the context window and message history for conversations."""
-import os
+
 from src.llm.llm_db_msg_controller import MessagesController
 from src.llm.llm_db_cnvs_controller import ConversationsController
 from src.llm.llm_controller import LLMController
+from src.llm.prompt_manager import LLMPromptController
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__) 
@@ -14,7 +15,8 @@ class ContextManager:
                  load_latest_system: bool = True,
                  messages_controller: MessagesController = None,
                  conversations_controller: ConversationsController = None,
-                 llm_handler: LLMController = None):
+                 llm_controller: LLMController = None,
+                 prompt_controller: LLMPromptController = None):
         """
         Manages the context window and message history for conversations.
         Handles loading, updating, and maintaining the conversation context.
@@ -30,19 +32,28 @@ class ContextManager:
         self.context_window_len = context_window_len
         self.messages_controller = messages_controller
         self.conversations_controller = conversations_controller
-        self.llm_handler = llm_handler
+        self.llm_controller = llm_controller
         self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
-
+        self.prompt_controller = prompt_controller
         # Load initial context window from database
         self._context_window = self._load_context_window()
-        logger.debug(f"Context window: {self._context_window}")
+        self._inject_system_prompt()
 
         return None
 
+    def _inject_system_prompt(self):
+        """
+        Inject system prompt into context window.
+        """
+        self._context_window.insert(0, {
+            'role': 'system',
+            'content': self.prompt_controller.get_system_prompt()
+        })
+
     def _load_context_window(self):
         """
-        Load context window from database with proper message ordering and system message handling.
+        Load context window from database with proper message ordering and system message handling on initialisation.
         Returns a list of message dictionaries in the correct sequence, according to max context window length.
         """
         # Get messages from database
@@ -72,22 +83,52 @@ class ContextManager:
     def manage_context_window(self, role: str, message: str):
         """
         Handles the context window by storing message in database and refreshing context.
-        The context window is always loaded from the database to ensure consistency.
+        The context window is initially loaded from the database to allow for the chat history to be loaded.
+        The context window is then managed as a list of message dictionaries.
         Only user and assistant messages are included in the context window.
         Assistant reasoning messages are stored but not included in the context.
         """
         # Store the new message if it's a valid role
+
+        logger.info(f"Context window: {self._context_window}")
         if role in ['user', 'assistant', 'system', 'assistant-reasoning']:
             self.messages_controller.insert_single_message(
                 self.conversation_id,
                 role,
                 message,
-                self.llm_handler.get_token_count(message)  # Get token count
+                self.llm_controller.get_token_count(message)  # Get token count
             )
             # Only refresh context window for messages that should be in it
+            
             if role in ['user', 'assistant', 'system']:
                 self.conversations_controller.update_message_count(self.conversation_id)
-                self._context_window = self._load_context_window()
+                # self._context_window = self._load_context_window()
+
+                if len(self._context_window) > self.context_window_len and self._context_window[0]['role'] == 'system':
+                    self._context_window.pop(1)
+                    self._context_window.append(
+                        {
+                            'role': role,
+                            'content': message,
+                        }
+                    )
+                elif len(self._context_window) > self.context_window_len:
+                    self._context_window.pop(0)
+                    self._context_window.append(
+                            {
+                                'role': role,
+                                'content': message
+                            }
+                        )
+                else:
+                    self._context_window.append(
+                        {
+                            'role': role,
+                            'content': message,
+                        }
+                    )
+
+            logger.info(f"Context window: {self._context_window}")
         else:
             logger.warning(f"Invalid message role: {role}")
 
