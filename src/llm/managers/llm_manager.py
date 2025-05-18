@@ -2,7 +2,7 @@ from typing import List, Dict, Tuple, Optional, Any
 
 from src.llm.controllers.llm_db_cnvs_controller import ConversationsController
 from src.llm.controllers.llm_controller import LLMController
-
+from src.llm.embedding.embedder import Embedder
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__) 
@@ -13,7 +13,8 @@ class LLMManager:
                  conversation_id: Optional[int] = None, 
                  load_latest_system: bool = True,
                  conversations_controller: Optional[ConversationsController] = None,
-                 llm_controller: Optional[LLMController] = None) -> None:
+                 llm_controller: Optional[LLMController] = None,
+                 embedder: Optional[Embedder] = None) -> None:
         """Initialize the LLMManager.
 
         This class interacts with the context manager to get the context window and generate responses.
@@ -32,6 +33,7 @@ class LLMManager:
         # Load dependencies
         self.conversations_controller = conversations_controller or ConversationsController()
         self.llm_controller = llm_controller or LLMController()
+        self.embedder = embedder or Embedder()
         self.conversation_id = conversation_id
         self.load_latest_system = load_latest_system
         
@@ -108,10 +110,12 @@ class LLMManager:
         ] + context_window
 
         title = self.llm_controller.generate_response_from_context(title_prompt, thinking_model=False, max_new_tokens=max_new_tokens)
-        logger.debug(f"Title: {title[0]}")
-        logger.info(f"context_window: {context_window}")
+        logger.info(f"Title: {title[0]}")
+        logger.debug(f"context_window: {context_window}")
+        title_embedding = self.embedder.embed(title[0])
+        logger.info(f"Title embedding: {len(title_embedding)}")
         # Update the conversation title in the database
-        self.conversations_controller.update_conversation_title(self.conversation_id, title[0])
+        self.conversations_controller.update_conversation_title(self.conversation_id, title[0], title_embedding)
 
     @property
     def context_window(self) -> List[Dict[str, str]]:

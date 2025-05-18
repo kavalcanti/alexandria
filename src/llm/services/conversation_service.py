@@ -21,6 +21,7 @@ from src.llm.controllers.llm_db_msg_controller import MessagesController
 from src.llm.managers.prompt_manager import LLMPromptManager
 from src.logger import get_module_logger
 from src.llm.db_connector import DatabaseStorage
+from src.llm.embedding.embedder import Embedder
 
 logger = get_module_logger(__name__) 
 
@@ -50,10 +51,12 @@ class ConversationService:
         """
         # Initialize shared dependencies
         self.db_storage = DatabaseStorage()
+        self.embedder = Embedder()
         self.conversations_controller = ConversationsController(self.db_storage)
         self.messages_controller = MessagesController(self.db_storage)
         self.llm_controller = LLMController()
         self.prompt_controller = LLMPromptManager()
+        
         # Initialize conversation ID
         if conversation_id is None:
             self.conversation_id = self.conversations_controller.get_next_conversation_id()

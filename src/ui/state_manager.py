@@ -166,24 +166,6 @@ class StateManager:
         self.chat_control.text = []
         self.thinking_control.text = []
         self.conversation_service = ConversationService()
-        
-    def get_chat_text(self) -> FormattedText:
-        """
-        Get current chat text.
-        
-        Returns:
-            FormattedText: Current formatted chat text
-        """
-        return self.chat_control.text
-        
-    def get_thinking_text(self) -> FormattedText:
-        """
-        Get current thinking text.
-        
-        Returns:
-            FormattedText: Current formatted thinking text
-        """
-        return self.thinking_control.text
 
     def save_current_output(self) -> Optional[str]:
         """
@@ -207,3 +189,22 @@ class StateManager:
         
         logger.info("No assistant message found to save")
         return None 
+
+    def get_chat_text(self) -> FormattedText:
+        """
+        Get current chat text.
+        
+        Returns:
+            FormattedText: Current formatted chat text
+        """
+        return self.chat_control.text
+        
+    def get_thinking_text(self) -> FormattedText:
+        """
+        Get current thinking text.
+        
+        Returns:
+            FormattedText: Current formatted thinking text
+        """
+        return self.thinking_control.text
+

@@ -4,6 +4,7 @@ from typing import Optional, Any, Union
 from datetime import datetime
 import bleach
 from sqlalchemy import text
+from pgvector import Vector
 
 class DatabaseInputValidator:
     """Validator class for database inputs."""
@@ -30,7 +31,7 @@ class DatabaseInputValidator:
         return cleaned[:max_length] if len(cleaned) > max_length else cleaned
 
     @staticmethod
-    def validate_vector(vector: Optional[list[float]], expected_dim: int = 384) -> Optional[list[float]]:
+    def validate_vector(vector: Optional[Vector], expected_dim: int = 384) -> Optional[list[float]]:
         """
         Validate vector input for database storage.
         
@@ -47,14 +48,9 @@ class DatabaseInputValidator:
         if vector is None:
             return None
             
-        if not isinstance(vector, list):
-            raise ValueError("Vector must be a list")
-            
         if len(vector) != expected_dim:
             raise ValueError(f"Vector must have dimension {expected_dim}")
             
-        if not all(isinstance(x, (int, float)) for x in vector):
-            raise ValueError("Vector must contain only numbers")
             
         return vector
 
