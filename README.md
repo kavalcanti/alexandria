@@ -1,43 +1,47 @@
 # Alexandria
 
-A sophisticated terminal-based chat interface for interacting with Large Language Models, featuring conversation persistence and thought process visualization.
+A terminal-based chat interface for interacting with Large Language Models, featuring conversation persistence and thought process visualization.
 
-## Features
+## Overview
 
-- 🖥️ Terminal User Interface with split-pane design
-  - Chat history and LLM response window
+Alexandria is a sophisticated terminal application that provides a robust interface for interacting with huggingface language models. It combines modern database technologies with efficient local model deployment to create a seamless development and experimentation environment.
+
+## Key Features
+
+- Terminal User Interface
+  - Split-pane design with chat history and response windows
   - Real-time thought process visualization
-  - Full keyboard navigation support
-- 🤖 Hugging Face Transformers Integration
-  - Default support for Qwen3-0.6B
-  - Local model caching for improved performance
-  - Configurable model selection
-- 💭 Thought Process Visualization
-  - Real-time display of LLM reasoning
-  - Separate scrollable thinking history
-  - Insight into model decision making
-- 💾 Robust Conversation Management
-  - PostgreSQL-based persistence
-  - Unique conversation IDs
-  - Resume previous conversations
-  - Automatic conversation titling
-- 📜 Smart Context Management
+  - Keyboard navigation
+- Model Integration
+  - Hugging Face Transformers support
+  - Default configuration for Qwen3-0.6B
+  - Local model caching system
+  - Flexible model selection options
+- Thought Process Visualization
+  - Real-time model reasoning display
+  - Independent scrollable thinking history
+- Data Management
+  - PostgreSQL-based conversation persistence
+  - Unique conversation identification system
+  - Conversation resumption capabilities
+  - Automated conversation titling
+- Context Management
   - Configurable sliding context window
-  - System prompt injection
-  - Efficient token usage tracking
-- 🔄 Automatic conversation management with unique IDs
-- 🔍 Vector embedding support for future semantic search capabilities
-- 📜 Configurable conversation history with sliding context window
-- 💻 Local model caching for improved performance
-- 🔄 Resume previous conversations using conversation IDs
+  - System prompt integration
+  - Token usage optimization
+- Advanced Features
+  - Vector based similarity search support for semantic search on conversation titles (not fully implemented)
+  - Local model caching system
+  - Conversation history management
+  - Vector similarity search capabilities
 
-## Prerequisites
+## Technical Requirements
 
 - Python 3.12+
 - PostgreSQL with pgvector extension
-- Conda (for environment setup)
+- Conda (for environment management)
 
-## Quick Start Guide
+## Installation
 
 1. Clone the repository:
 ```bash
@@ -72,10 +76,10 @@ HF_MODEL=Qwen/Qwen3-0.6B
 LOGFILE=alexandria.log
 ```
 
-5. Start Alexandria:
+5. Launch Alexandria:
 
 ```bash
-# Start a new conversation (default behavior)
+# Start a new conversation
 ./alexandria.sh
 
 # Continue an existing conversation
@@ -84,83 +88,59 @@ LOGFILE=alexandria.log
 ./alexandria.sh --conversation CONVERSATION_ID
 ```
 
-During use:
-- Press `Ctrl+O` to start a new conversation at any time
-- Press `Ctrl+Q` to exit the application
-- Press `Ctrl+Space` to send a message
-- Use `Ctrl+Up/Down` to scroll chat history
-- Use `Shift+Up/Down` to scroll thought process
+## Usage
+
+- `Ctrl+O`: Start new conversation
+- `Ctrl+Q`: Exit application
+- `Ctrl+Space`: Send message
+- `Ctrl+Up/Down`: Navigate chat history
+- `Shift+Up/Down`: Navigate thought process
 
 ## Documentation
 
-Our documentation is organized in the `docs` folder:
+Comprehensive documentation is available in the `docs` directory:
 
-- [User Guide](docs/UserGuide.md) - Detailed usage instructions and keyboard shortcuts
-- [Contributing Guide](docs/CONTRIBUTING.md) - Guidelines for contributors
+- [User Guide](docs/UserGuide.md) - Detailed usage instructions
+- [Contributing Guide](docs/CONTRIBUTING.md) - Development guidelines
 - [License](docs/LICENSE.md) - MIT License
-- [TODOs](docs/TODOs.md) - Current development status and planned features
+- [TODOs](docs/TODOs.md) - Development roadmap
 
-## Project Structure
+## Architecture
 
 ```
 alexandria/
-├── ai_models/          # AI model storage and cache
+├── ai_models/          # Model storage and cache
 ├── conf/              # Configuration files
 ├── datasets/          # Dataset storage
 ├── docs/              # Documentation
-│   ├── UserGuide.md   # User manual
-│   ├── CONTRIBUTING.md# Contribution guidelines
-│   ├── LICENSE.md     # MIT License
-│   └── TODOs.md       # Development roadmap
 ├── logs/              # Application logs
 ├── src/               # Source code
-│   ├── db/           # Database operations and models
-│   │   ├── db_config.py    # Database configuration
-│   │   ├── db_init.py      # Database initialization
-│   │   ├── db_utils.py     # Database utilities
-│   │   └── db_models.py    # Database models
-│   ├── llm/          # LLM integration and processing
-│   │   ├── controllers/    # LLM control logic
-│   │   ├── managers/       # LLM state management
-│   │   ├── services/       # Core LLM services
-│   │   ├── embedding/      # Embedding functionality
-│   │   ├── retrieval/      # Content retrieval
-│   │   ├── tools/         # LLM tools and utilities
-│   │   └── db_connector.py # Database integration
-│   ├── ui/           # User interface components
-│   │   ├── state_manager.py     # UI state management
-│   │   ├── layout.py            # UI layout definitions
-│   │   ├── markdown_formatter.py # Text formatting
-│   │   └── keybindings.py       # Keyboard shortcuts
-│   ├── logger.py     # Logging setup
-│   └── userland.py   # Core application logic
-├── .conda/            # Conda environment directory
-├── .venv/             # Virtual environment directory
+│   ├── db/           # Database operations
+│   ├── llm/          # LLM integration
+│   └── ui/           # User interface
 ├── main.py           # Application entry point
 ├── alexandria.sh     # Launch script
-├── pyproject.toml    # Project metadata and configuration
-├── requirements.txt  # Project dependencies
-├── uv.lock          # Dependency lock file
-└── .python-version   # Python version specification
+├── pyproject.toml    # Project configuration
+└── requirements.txt  # Dependencies
 ```
 
 ## Technical Stack
 
-- **LLM**: Hugging Face transformers (default: Qwen3-0.6B)
+- **Language Models**: Hugging Face transformers
 - **Database**: PostgreSQL with pgvector
-- **UI**: prompt_toolkit
-- **Vector Search**: pgvector
+- **Interface**: prompt_toolkit
+- **Vector Operations**: pgvector
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md) for details.
+Contributions are welcome. Please refer to the [Contributing Guide](docs/CONTRIBUTING.md) for development guidelines.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](docs/LICENSE.md) file for details.
 
-## Acknowledgments
+## Dependencies
 
-- [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) for the terminal interface
-- [Hugging Face](https://huggingface.co/) for transformer models
-- [pgvector](https://github.com/pgvector/pgvector) for vector similarity search capabilities
+- [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) - Terminal interface framework
+- [Hugging Face](https://huggingface.co/) - Transformer models
+- [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
