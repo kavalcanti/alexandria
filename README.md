@@ -73,7 +73,7 @@ DB_HOST=your_db_host
 DB_PASS=your_db_password
 DATABASE=your_database_name
 HF_MODEL=Qwen/Qwen3-0.6B
-LOGFILE=alexandria.log
+EMBD_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
 
 5. Launch Alexandria:
