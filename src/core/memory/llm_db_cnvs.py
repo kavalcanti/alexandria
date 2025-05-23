@@ -3,7 +3,7 @@ import logging
 from typing import Optional, List
 from sqlalchemy import update, select, text
 from sqlalchemy.exc import SQLAlchemyError
-from src.llm.db_connector import DatabaseStorage
+from src.infrastructure.db_connector import DatabaseStorage
 
 logger = logging.getLogger(__name__)
 

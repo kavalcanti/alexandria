@@ -13,15 +13,15 @@ The service coordinates:
 """
 
 from typing import List, Optional, Dict, Any
-from src.llm.managers.context_manager import ContextManager
-from src.llm.managers.llm_manager import LLMManager
-from src.llm.controllers.llm_controller import LLMController
-from src.llm.controllers.llm_db_cnvs_controller import ConversationsController
-from src.llm.controllers.llm_db_msg_controller import MessagesController
-from src.llm.managers.prompt_manager import LLMPromptManager
 from src.logger import get_module_logger
-from src.llm.db_connector import DatabaseStorage
-from src.llm.embedding.embedder import Embedder
+from src.infrastructure.llm_controller import LLMController
+from src.infrastructure.db_connector import DatabaseStorage
+from src.core.managers.context_manager import ContextManager
+from src.core.managers.llm_manager import LLMManager
+from src.core.memory.llm_db_cnvs import ConversationsController
+from src.core.memory.llm_db_msg import MessagesController
+from src.core.managers.prompt_manager import LLMPromptManager
+from src.core.embedding.embedder import Embedder
 
 logger = get_module_logger(__name__) 
 

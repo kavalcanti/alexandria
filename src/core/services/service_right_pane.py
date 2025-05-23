@@ -6,7 +6,7 @@ Future features will include support for chained LLM calls.
 """
 
 from typing import List, Dict, Any
-from src.llm.controllers.llm_db_msg_controller import MessagesController
+from src.core.memory.llm_db_msg import MessagesController
 
 class RightPaneService:
     def __init__(self, messages_controller: MessagesController) -> None:

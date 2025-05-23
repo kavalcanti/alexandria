@@ -5,10 +5,10 @@ and manage the flow of messages between users and assistants while respecting co
 """
 
 from typing import List, Dict, Optional, Any
-from src.llm.controllers.llm_db_msg_controller import MessagesController
-from src.llm.controllers.llm_db_cnvs_controller import ConversationsController
-from src.llm.controllers.llm_controller import LLMController
-from src.llm.managers.prompt_manager import LLMPromptManager
+from src.core.memory.llm_db_msg import MessagesController
+from src.core.memory.llm_db_cnvs import ConversationsController
+from src.infrastructure.llm_controller import LLMController
+from src.core.managers.prompt_manager import LLMPromptManager
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__) 
