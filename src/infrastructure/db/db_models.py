@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import TIMESTAMP, VARCHAR
 from pgvector.sqlalchemy import Vector
-from src.db.db_config import metadata
+from src.infrastructure.db.db_config import metadata
 
 # Conversations definition
 conversations_table = Table(

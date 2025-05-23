@@ -6,8 +6,8 @@ thinking process display, and conversation context management.
 """
 from typing import Optional, List, Dict, Tuple, TypeAlias
 from prompt_toolkit.layout.controls import FormattedTextControl
-from src.llm.services.conversation_service import ConversationService
-from src.llm.services.service_right_pane import RightPaneService
+from src.core.services.conversation_service import ConversationService
+from src.core.services.service_right_pane import RightPaneService
 from src.ui.markdown_formatter import MarkdownFormatter
 from src.logger import get_module_logger
 from src.utils.file_utils import save_llm_output

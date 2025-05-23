@@ -1,8 +1,8 @@
 from typing import List, Dict, Tuple, Optional, Any
 
-from src.llm.controllers.llm_db_cnvs_controller import ConversationsController
-from src.llm.controllers.llm_controller import LLMController
-from src.llm.embedding.embedder import Embedder
+from src.core.memory.llm_db_cnvs import ConversationsController
+from src.infrastructure.llm_controller import LLMController
+from src.core.embedding.embedder import Embedder
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__) 

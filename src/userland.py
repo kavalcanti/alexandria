@@ -6,8 +6,7 @@ import os
 from dotenv import load_dotenv
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout.layout import Layout
-
-from src.llm.services.conversation_service import ConversationService
+from src.core.services.conversation_service import ConversationService
 from src.ui.layout import create_layout_components
 from src.ui.keybindings import create_keybindings
 from src.ui.state_manager import StateManager

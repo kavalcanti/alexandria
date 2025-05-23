@@ -4,10 +4,10 @@ from typing import Generator, Optional
 from sqlalchemy.engine import Engine, Connection
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import MetaData
-from src.db.db_config import get_engine, metadata
-from src.db.db_init import DatabaseInitializer
-from src.db.db_models import conversations_table, messages_table
-from src.db.db_utils import DatabaseInputValidator
+from src.infrastructure.db.db_config import get_engine, metadata
+from src.infrastructure.db.db_init import DatabaseInitializer
+from src.infrastructure.db.db_models import conversations_table, messages_table
+from src.infrastructure.db.db_utils import DatabaseInputValidator
 
 from src.logger import get_module_logger
 
