@@ -21,7 +21,7 @@ class LLMPromptManager:
         # Loads system prompts.
         # Handles prompt injection.
         # Defines specialist prompts.
-        self._default_system_prompt: str = """You are a powerful assistant. Keep your responses concise and to the point."""
+        self._default_system_prompt: str = """You are an advanced AI assistant. You provide detailed, accurate, and helpful responses to user queries."""
 
         return None
 
