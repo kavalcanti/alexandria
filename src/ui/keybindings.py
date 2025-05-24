@@ -36,7 +36,8 @@ def create_keybindings(
     - Ctrl+Up/Down: Scroll chat window
     - Shift+Up/Down: Scroll thinking window
     - Ctrl+O: Reset conversation
-    - Ctrl+Space: Send message (with RAG support)
+    - Ctrl+Space: Send message (standard generation, no RAG)
+    - Shift+Space: Send message (RAG-enabled generation)
     - Ctrl+S: Save current LLM output
     
     Args:
@@ -141,13 +142,53 @@ def create_keybindings(
     @kb.add('c-space')
     async def _(event) -> None:
         """
-        Handle message sending and AI response generation with RAG support.
+        Handle message sending and AI response generation (standard, RAG-less).
         
         This function:
         1. Gets user input from the message buffer
         2. Updates UI to show AI is processing
         3. Adds user message to conversation
-        4. Generates AI response (using RAG if available)
+        4. Generates AI response using standard generation (no RAG)
+        5. Updates UI with AI response
+        6. Resets message buffer and focus
+        
+        Args:
+            event: Key press event
+            
+        Returns:
+            None
+        """
+        user_input = msg_buffer.text
+
+        if user_input.strip(): 
+            app = application if application else get_app()
+            app.layout.focus(chat_formatted_text)
+            msg_buffer.text = "AI is busy."
+
+            # Add user message to UI and context (for standard generation)
+            state_manager.append_user_message(user_input)
+            app.invalidate()
+
+            logger.info("Using standard (RAG-less) response generation")
+            # Always use standard response generation for Ctrl+Space
+            ai_answer, ai_thinking = await asyncio.to_thread(conversation_manager.generate_chat_response)
+            state_manager.append_assistant_message(ai_answer, ai_thinking)
+            
+            app.invalidate()
+            
+            msg_buffer.text = ""
+            app.layout.focus(msg_window)
+
+    @kb.add('c-r')
+    async def _(event) -> None:
+        """
+        Handle message sending and AI response generation with RAG support.
+        
+        This function:
+        1. Gets user input from the message buffer
+        2. Updates UI to show AI is processing
+        3. Adds user message to UI only (RAG manager handles context)
+        4. Generates AI response using RAG if available
         5. Updates UI with AI response and retrieval info
         6. Resets message buffer and focus
         
@@ -164,8 +205,9 @@ def create_keybindings(
             app.layout.focus(chat_formatted_text)
             msg_buffer.text = "AI is busy."
 
-            # Add user message to UI and context
-            state_manager.append_user_message(user_input)
+            # Add user message to UI only (RAG manager will handle context)
+            formatted_message = state_manager._format_message('user', user_input)
+            state_manager.chat_control.text = formatted_message + state_manager.chat_control.text
             app.invalidate()
 
             # Check if RAG is enabled and use appropriate generation method
@@ -174,11 +216,27 @@ def create_keybindings(
                 hasattr(conversation_manager, 'generate_rag_response')):
                 
                 logger.info("Using RAG-enabled response generation")
-                # Generate RAG response
+                # Generate RAG response (this handles context management internally)
                 ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(
                     conversation_manager.generate_rag_response, user_input
                 )
-                state_manager.append_assistant_message(ai_answer, ai_thinking, retrieval_info)
+                # Add response to UI only (RAG manager already handled context)
+                if ai_thinking:
+                    formatted_thinking = state_manager._format_message('assistant-reasoning', ai_thinking)
+                    state_manager.thinking_control.text = formatted_thinking + state_manager.thinking_control.text
+                    logger.info(f"Appending assistant reasoning message: {ai_thinking}")
+
+                # Handle retrieval information
+                if retrieval_info and retrieval_info.get('total_matches', 0) > 0:
+                    retrieval_text = state_manager._format_retrieval_info(retrieval_info)
+                    formatted_retrieval = state_manager._format_message('retrieval-info', retrieval_text)
+                    state_manager.thinking_control.text = formatted_retrieval + state_manager.thinking_control.text
+                    logger.info(f"Added retrieval info to thinking pane: {retrieval_info['total_matches']} documents")
+
+                # Add main assistant message to UI
+                formatted_message = state_manager._format_message('assistant', ai_answer)
+                state_manager.chat_control.text = formatted_message + state_manager.chat_control.text
+                logger.info(f"Appending assistant message: {ai_answer}")
                 
                 # Log retrieval info
                 if retrieval_info:
@@ -186,8 +244,10 @@ def create_keybindings(
                 else:
                     logger.info("No documents retrieved for RAG response")
             else:
-                logger.info("Using standard response generation")
-                # Generate standard response
+                logger.info("RAG not available, falling back to standard response generation")
+                # Fallback to standard response if RAG not available
+                # Add user message to context manually since we didn't use state_manager.append_user_message
+                conversation_manager.manage_context_window("user", user_input)
                 ai_answer, ai_thinking = await asyncio.to_thread(conversation_manager.generate_chat_response)
                 state_manager.append_assistant_message(ai_answer, ai_thinking)
             

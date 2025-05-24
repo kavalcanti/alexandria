@@ -110,18 +110,20 @@ def create_layout_components() -> Tuple[HSplit, Buffer, FormattedTextControl, Fo
     bottom_bar_text = [
         ("class:bold", " Essential: "),
         ("class:shortcut", "Ctrl+Space"),
-        ("class:bold", ": Send | "),
+        ("class:bold", ": Send (Standard) | "),
+        ("class:shortcut", "Ctrl+R"),
+        ("class:bold", ": Send (RAG) | "),
         ("class:shortcut", "Ctrl+Q"),
-        ("class:bold", ": Quit | "),
+        ("class:bold", ": Quit\n"),
+        ("class:bold", " Other: "),
         ("class:shortcut", "Ctrl+O"),
         ("class:bold", ": Reset | "),
         ("class:shortcut", "Ctrl+S"),
-        ("class:bold", ": Save\n"),
-        ("class:bold", " Navigation: "),
+        ("class:bold", ": Save | "),
         ("class:shortcut", "Ctrl+↑/↓"),
-        ("class:bold", ": Chat scroll | "),
+        ("class:bold", ": Chat | "),
         ("class:shortcut", "Shift+↑/↓"),
-        ("class:bold", ": Thoughts scroll"),
+        ("class:bold", ": Thoughts"),
     ]
 
     # Chat side composite

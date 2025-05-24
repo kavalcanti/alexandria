@@ -138,6 +138,9 @@ class StateManager:
         """
         Append a user message to both UI and context window.
         
+        This method is used for standard generation (Ctrl+Space) where the state manager
+        handles both UI and context updates.
+        
         Args:
             message: The user's message content to be added
             
@@ -147,13 +150,15 @@ class StateManager:
         formatted_message = self._format_message('user', message)
         self.chat_control.text = formatted_message + self.chat_control.text
         
-        # For RAG-enabled services, we don't add to context here since generate_rag_response handles it
-        if not (self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled') and self.conversation_service.is_rag_enabled):
-            self.conversation_service.manage_context_window("user", message)
+        # Add to context window for standard generation
+        self.conversation_service.manage_context_window("user", message)
         
     def append_assistant_message(self, message: str, thinking: Optional[str] = None, retrieval_info: Optional[Dict] = None) -> None:
         """
-        Append an assistant message to UI and optionally add thinking process and retrieval info.
+        Append an assistant message to UI and context window.
+        
+        This method is used for standard generation (Ctrl+Space) where the state manager
+        handles both UI and context updates.
         
         Args:
             message: The assistant's response content
@@ -167,9 +172,8 @@ class StateManager:
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
             self.thinking_control.text = formatted_thinking + self.thinking_control.text
-            # For RAG-enabled services, reasoning is handled by generate_rag_response
-            if not (self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled') and self.conversation_service.is_rag_enabled):
-                self.conversation_service.manage_context_window("assistant-reasoning", thinking)
+            # Add thinking to context window for standard generation
+            self.conversation_service.manage_context_window("assistant-reasoning", thinking)
             logger.info(f"Appending assistant reasoning message: {thinking}")
 
         # Handle retrieval information in the right pane
@@ -191,9 +195,8 @@ class StateManager:
         formatted_message = self._format_message('assistant', message)
         self.chat_control.text = formatted_message + self.chat_control.text
         
-        # For RAG-enabled services, context management is handled by generate_rag_response
-        if not (self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled') and self.conversation_service.is_rag_enabled):
-            self.conversation_service.manage_context_window("assistant", message)
+        # Add assistant message to context window for standard generation
+        self.conversation_service.manage_context_window("assistant", message)
         logger.info(f"Appending assistant message: {message}")
 
         # Save the output to a markdown file

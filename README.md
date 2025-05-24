@@ -72,7 +72,8 @@ Launch Alexandria:
 Basic controls:
 - `Ctrl+O`: Start new conversation
 - `Ctrl+Q`: Exit application
-- `Ctrl+Space`: Send message
+- `Ctrl+Space`: Send message (standard generation)
+- `Ctrl+R`: Send message (RAG-enabled generation)
 - `Ctrl+Up/Down`: Navigate chat history
 - `Shift+Up/Down`: Navigate thought process
 

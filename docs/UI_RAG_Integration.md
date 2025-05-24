@@ -69,14 +69,19 @@ When RAG is active, you'll see:
 
 ### Keyboard Shortcuts
 
-All existing keyboard shortcuts work with RAG:
+Alexandria now supports dual generation modes with dedicated keybinds:
 
-- **Ctrl+Space**: Send message (automatically uses RAG when enabled)
+- **Ctrl+Space**: Send message (standard generation - no RAG)
+- **Shift+Space**: Send message (RAG-enabled generation)
 - **Ctrl+Q**: Quit application
 - **Ctrl+O**: Reset conversation (maintains RAG settings)
 - **Ctrl+S**: Save current LLM output
 - **Ctrl+↑/↓**: Scroll chat window
 - **Shift+↑/↓**: Scroll thinking/reasoning window
+
+This dual approach allows you to:
+- Use **Ctrl+Space** for quick, standard responses without document retrieval
+- Use **Shift+Space** when you need enhanced responses with knowledge base context
 
 ### Visual Layout
 
@@ -100,8 +105,8 @@ All existing keyboard shortcuts work with RAG:
 │                     │      (relevance: 0.730)    │
 │                     │   3. /docs/ai_intro.md (0.65)│
 └─────────────────────┴─────────────────────────────┤
-│ Essential: Ctrl+Space: Send | Ctrl+Q: Quit       │
-│ Navigation: Ctrl+↑/↓: Chat | Shift+↑/↓: Thoughts │
+│ Essential: Ctrl+Space: Send (Standard) | Shift+Space: Send (RAG) | Ctrl+Q: Quit │
+│ Other: Ctrl+O: Reset | Ctrl+S: Save | Ctrl+↑/↓: Chat | Shift+↑/↓: Thoughts │
 └─────────────────────────────────────────────────────┘
 ```
 
