@@ -8,49 +8,12 @@ Alexandria is a terminal application for interacting with Hugging Face language 
 
 ## Key Features
 
-- Terminal User Interface
-  - Split-pane design: chat history and response windows
-  - Real-time thought process visualization
-  - Keyboard navigation
-- Model Integration
-  - Hugging Face Transformers support
-  - Default configuration for Qwen3-0.6B
-  - Local model caching
-  - Flexible model selection
-- Thought Process Visualization
-  - Real-time model reasoning display
-  - Independently scrollable thinking history
-- Document Ingestion & RAG Pipeline
-  - Multi-format document support: PDF, DOCX, TXT, Markdown, code files
-  - Text chunking strategies: sentence-based, paragraph-based, semantic-based
-  - Large file handling: automatic file-level chunking for files >100MB
-  - Deduplication: using file hashes
-  - Vector embeddings: using sentence-transformers
-  - PostgreSQL + pgvector: for similarity search
-  - Command-line tools: for batch document processing
-- Advanced Retrieval System
-  - Vector similarity search: L2 distance
-  - Contextual search: surrounding chunk retrieval
-  - Filtering: by document type, date range, content type
-  - Multiple search interfaces: programmatic and CLI
-  - Real-time embedding generation: for query processing
-- Data Management
-  - PostgreSQL-based conversation persistence
-  - Unique conversation IDs
-  - Conversation resumption
-  - Automated conversation titling
-  - Document metadata tracking and status management
-- Context Management
-  - Configurable sliding context window
-  - System prompt integration
-  - Token usage optimization
-  - Document-aware context: for RAG responses
-- Advanced Features
-  - Vector-based similarity search for semantic search on conversation titles (not fully implemented)
-  - Local model caching
-  - Conversation history management
-  - Vector similarity search
-  - CLI tools: for document management and search
+- **Terminal User Interface**: Split-pane design with chat history and response windows, real-time thought process visualization, keyboard navigation
+- **Model Integration**: Hugging Face Transformers support, default configuration for Qwen3-0.6B, local model caching, flexible model selection
+- **Document Ingestion & RAG Pipeline**: Multi-format document support (PDF, DOCX, TXT, Markdown, code files), text chunking strategies, large file handling, vector embeddings using sentence-transformers
+- **Advanced Retrieval System**: Vector similarity search, contextual search, filtering by document type and date range, multiple search interfaces
+- **Data Management**: PostgreSQL-based conversation persistence, unique conversation IDs, conversation resumption, automated conversation titling
+- **Context Management**: Configurable sliding context window, system prompt integration, token usage optimization
 
 ## Technical Requirements
 
@@ -93,8 +56,9 @@ HF_MODEL=Qwen/Qwen3-0.6B
 EMBD_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
 
-5. Launch Alexandria:
+## Usage
 
+Launch Alexandria:
 ```bash
 # Start a new conversation
 ./alexandria.sh
@@ -105,26 +69,45 @@ EMBD_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ./alexandria.sh --conversation CONVERSATION_ID
 ```
 
-## Usage
-
+Basic controls:
 - `Ctrl+O`: Start new conversation
 - `Ctrl+Q`: Exit application
 - `Ctrl+Space`: Send message
 - `Ctrl+Up/Down`: Navigate chat history
 - `Shift+Up/Down`: Navigate thought process
 
-## Documentation
+## Document Ingestion
 
-Comprehensive documentation is available in the `docs` directory:
+Ingest documents for RAG capabilities:
 
-- [User Guide](docs/UserGuide.md) - Detailed usage instructions
-- [Contributing Guide](docs/CONTRIBUTING.md) - Development guidelines
-- [License](docs/LICENSE.md) - MIT License
-- [TODOs](docs/TODOs.md) - Development roadmap
+```bash
+# Ingest a single file
+python -m src.core.ingestion.cli ingest-file document.pdf
 
-**Ingestion & Retrieval Documentation:**
-- [Document Ingestion Guide](src/core/ingestion/README.md) - Detailed ingestion documentation
-- [Document Retrieval Guide](src/core/retrieval/README.md) - Comprehensive retrieval documentation
+# Ingest all files in a directory
+python -m src.core.ingestion.cli ingest-dir /path/to/documents
+
+# Custom chunk size and strategy
+python -m src.core.ingestion.cli ingest-dir docs/ \
+    --chunk-strategy markdown_based \
+    --chunk-size 1500 \
+    --overlap-size 100
+```
+
+## Document Retrieval
+
+Search ingested documents:
+
+```bash
+# Basic document search
+python -m src.core.retrieval.cli search "machine learning algorithms"
+
+# Search with max results
+python -m src.core.retrieval.cli search "neural networks" --max-results 20
+
+# Search in specific documents
+python -m src.core.retrieval.cli search-docs "data analysis" --document-ids 1,2,3
+```
 
 ## Architecture
 
@@ -165,31 +148,6 @@ alexandria/
 - **Document Processing**: PyPDF2, python-docx, custom text processors
 - **Vector Search**: L2 distance with automatic similarity scoring
 
-## RAG Pipeline Details
-
-### Chunking Strategies
-
-1. **Sentence-Based**: Intelligent sentence boundary detection
-2. **Paragraph-Based**: Natural paragraph breaks
-3. **Semantic-Based**: Content-aware chunking
-4. **Code-Based**: Programming language syntax awareness
-5. **Markdown-Based**: Header and section preservation
-6. **Fixed-Size**: Simple character-based chunking
-
-### Vector Embeddings
-
-- **Model**: `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions)
-- **Generation**: Automatic embedding creation during ingestion
-- **Storage**: PostgreSQL with pgvector extension
-- **Search**: L2 distance with similarity score conversion
-
-### Large File Handling
-
-- **Automatic detection** of files >100MB
-- **File-level chunking** before text processing
-- **Memory-efficient** streaming processing
-- **Temporary file management** with automatic cleanup
-
 ## Contributing
 
 Contributions are welcome. Please refer to the [Contributing Guide](docs/CONTRIBUTING.md) for development guidelines.
@@ -197,13 +155,3 @@ Contributions are welcome. Please refer to the [Contributing Guide](docs/CONTRIB
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](docs/LICENSE.md) file for details.
-
-## Dependencies
-
-- [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) - Terminal interface framework
-- [Hugging Face](https://huggingface.co/) - Transformer models
-- [pgvector](https://github.com/pgvector/pgvector) - Vector similarity search
-- [sentence-transformers](https://www.sbert.net/) - Text embedding generation
-- [SQLAlchemy](https://www.sqlalchemy.org/) - Database ORM
-- [pdfplumber](https://github.com/jsvine/pdfplumber) - PDF Processing
-- [python-docx](https://python-docx.readthedocs.io/) - DOCX processing
