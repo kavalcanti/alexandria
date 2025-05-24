@@ -6,19 +6,22 @@ import os
 from dotenv import load_dotenv
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout.layout import Layout
-from src.core.services.conversation_service import create_conversation_service
+from src.core.services.conversation_service import create_conversation_service, create_rag_conversation_service
+from src.core.managers.rag_manager import RAGConfig
 from src.ui.layout import create_layout_components
 from src.ui.keybindings import create_keybindings
 from src.ui.state_manager import StateManager
 
 load_dotenv()
 
-def create_application(conversation_id=None):
+def create_application(conversation_id=None, enable_rag=True, rag_config=None):
     """
     Create and configure the main application instance.
     
     Args:
         conversation_id: Optional ID of an existing conversation to continue
+        enable_rag: Whether to enable RAG capabilities (default: True)
+        rag_config: Optional RAG configuration settings
         
     Returns:
         Application: Configured prompt_toolkit application
@@ -35,15 +38,23 @@ def create_application(conversation_id=None):
         style
     ) = create_layout_components()
 
-    # Create conversation manager with specified ID or default
-    conversation_service = create_conversation_service(
-        conversation_id=conversation_id  # None by default, which will create a new conversation
-    )
+    # Create conversation manager with RAG support if enabled
+    if enable_rag:
+        conversation_service = create_rag_conversation_service(
+            conversation_id=conversation_id,
+            rag_config=rag_config
+        )
+    else:
+        conversation_service = create_conversation_service(
+            conversation_id=conversation_id
+        )
 
     state_manager = StateManager(
         chat_formatted_text,
         thinking_formatted_text,
-        conversation_service
+        conversation_service,
+        enable_rag=enable_rag,
+        rag_config=rag_config
     )
 
     # Create application instance
@@ -76,10 +87,22 @@ def create_application(conversation_id=None):
 class Alexandria:
     def __init__(self):
         self._app = None
+        self.enable_rag = True
+        self.rag_config = None
+        
+    def configure_rag(self, enable_rag=True, rag_config=None):
+        """Configure RAG settings for the application"""
+        self.enable_rag = enable_rag
+        self.rag_config = rag_config
+        return self
         
     def create(self, conversation_id=None):
         """Create the application instance with the given conversation ID"""
-        self._app = create_application(conversation_id)
+        self._app = create_application(
+            conversation_id, 
+            enable_rag=self.enable_rag, 
+            rag_config=self.rag_config
+        )
         return self
         
     def run(self, conversation_id=None):

@@ -158,7 +158,7 @@ def handle_ask(args) -> int:
                 print(f"Search time: {retrieval_info['search_time_ms']:.2f}ms")
                 print("\nRetrieved documents:")
                 for i, match in enumerate(retrieval_info['matches'], 1):
-                    print(f"{i}. {match['filename']} (score: {match['similarity_score']:.3f})")
+                    print(f"{i}. {match['filepath']} (score: {match['similarity_score']:.3f})")
                     print(f"   {match['content_preview']}")
         
         return 0
@@ -259,7 +259,7 @@ def handle_search(args) -> int:
             print()
             
             for i, match in enumerate(result['matches'], 1):
-                print(f"{i}. [{match['filename']}] Score: {match['similarity_score']:.3f}")
+                print(f"{i}. [{match['filepath']}] Score: {match['similarity_score']:.3f}")
                 content_preview = match['content'][:200] + "..." if len(match['content']) > 200 else match['content']
                 print(f"   {content_preview}")
                 print()

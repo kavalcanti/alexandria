@@ -6,7 +6,8 @@ thinking process display, and conversation context management.
 """
 from typing import Optional, List, Dict, Tuple, TypeAlias
 from prompt_toolkit.layout.controls import FormattedTextControl
-from src.core.services.conversation_service import ConversationService, create_conversation_service
+from src.core.services.conversation_service import ConversationService, create_conversation_service, create_rag_conversation_service
+from src.core.managers.rag_manager import RAGConfig
 from src.core.services.service_right_pane import RightPaneService
 from src.ui.markdown_formatter import MarkdownFormatter
 from src.logger import get_module_logger
@@ -22,7 +23,9 @@ class StateManager:
         self,
         chat_control: FormattedTextControl,
         thinking_control: FormattedTextControl,
-        conversation_service: ConversationService
+        conversation_service: ConversationService,
+        enable_rag: bool = True,
+        rag_config: Optional[RAGConfig] = None
     ) -> None:
         """
         Initialize the state manager.
@@ -31,6 +34,8 @@ class StateManager:
             chat_control: Control for displaying chat messages in the UI
             thinking_control: Control for displaying thinking/reasoning process in the UI
             conversation_service: Service handling conversation state and context
+            enable_rag: Whether RAG capabilities are enabled
+            rag_config: Optional RAG configuration settings
         
         Returns:
             None
@@ -38,6 +43,8 @@ class StateManager:
         self.chat_control = chat_control
         self.thinking_control = thinking_control
         self.conversation_service = conversation_service
+        self.enable_rag = enable_rag
+        self.rag_config = rag_config
         self.markdown_formatter = MarkdownFormatter()
         self.right_pane_service = RightPaneService(self.conversation_service.messages_controller)
         # Initialize empty state
@@ -49,12 +56,18 @@ class StateManager:
             self._load_right_pane_messages()
             self._load_initial_conversation()
         
+        # Log RAG status
+        if self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled'):
+            logger.info(f"RAG enabled in UI: {self.conversation_service.is_rag_enabled}")
+        else:
+            logger.info("RAG not enabled in UI")
+
     def _format_message(self, role: str, content: str) -> FormattedText:
         """
         Format a message for display in the UI with Markdown support.
         
         Args:
-            role: Message role identifier ('user', 'assistant', 'system', 'assistant-reasoning')
+            role: Message role identifier ('user', 'assistant', 'system', 'assistant-reasoning', 'retrieval-info')
             content: Raw message content to be formatted
             
         Returns:
@@ -64,11 +77,17 @@ class StateManager:
             'user': 'You',
             'assistant': 'LLM',
             'system': 'System',
-            'assistant-reasoning': 'Thoughts'
+            'assistant-reasoning': 'Thoughts',
+            'retrieval-info': 'Knowledge Base'
         }
         
         display_role = role_display.get(role, role.title())
-        header = [("class:role", f"{display_role}:\n\n")]
+        
+        # Use special styling for knowledge base role
+        if role == 'retrieval-info':
+            header = [("class:knowledge-base", f"{display_role}:\n\n")]
+        else:
+            header = [("class:role", f"{display_role}:\n\n")]
         
         # Convert content to formatted text with Markdown support
         formatted_content = self.markdown_formatter.convert_to_formatted_text(content)
@@ -127,34 +146,92 @@ class StateManager:
         """
         formatted_message = self._format_message('user', message)
         self.chat_control.text = formatted_message + self.chat_control.text
-        self.conversation_service.manage_context_window("user", message)
         
-    def append_assistant_message(self, message: str, thinking: Optional[str] = None) -> None:
+        # For RAG-enabled services, we don't add to context here since generate_rag_response handles it
+        if not (self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled') and self.conversation_service.is_rag_enabled):
+            self.conversation_service.manage_context_window("user", message)
+        
+    def append_assistant_message(self, message: str, thinking: Optional[str] = None, retrieval_info: Optional[Dict] = None) -> None:
         """
-        Append an assistant message to UI and optionally add thinking process.
-        The message is already added to the context window by _parse_llm_response.
+        Append an assistant message to UI and optionally add thinking process and retrieval info.
         
         Args:
             message: The assistant's response content
             thinking: Optional thinking/reasoning process to display in right pane
+            retrieval_info: Optional information about retrieved documents
             
         Returns:
             None
         """
+        # Handle thinking process
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
             self.thinking_control.text = formatted_thinking + self.thinking_control.text
-            self.conversation_service.manage_context_window("assistant-reasoning", thinking)
+            # For RAG-enabled services, reasoning is handled by generate_rag_response
+            if not (self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled') and self.conversation_service.is_rag_enabled):
+                self.conversation_service.manage_context_window("assistant-reasoning", thinking)
             logger.info(f"Appending assistant reasoning message: {thinking}")
 
+        # Handle retrieval information in the right pane
+        if retrieval_info and retrieval_info.get('total_matches', 0) > 0:
+            retrieval_text = self._format_retrieval_info(retrieval_info)
+            formatted_retrieval = self._format_message('retrieval-info', retrieval_text)
+            
+            # Add retrieval info to thinking pane
+            if thinking:
+                # Insert retrieval info after thinking
+                self.thinking_control.text = formatted_retrieval + self.thinking_control.text
+            else:
+                # Add retrieval info alone if no thinking
+                self.thinking_control.text = formatted_retrieval + self.thinking_control.text
+            
+            logger.info(f"Added retrieval info to thinking pane: {retrieval_info['total_matches']} documents")
+
+        # Format and display main assistant message (without retrieval info)
         formatted_message = self._format_message('assistant', message)
         self.chat_control.text = formatted_message + self.chat_control.text
-        self.conversation_service.manage_context_window("assistant", message)
+        
+        # For RAG-enabled services, context management is handled by generate_rag_response
+        if not (self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled') and self.conversation_service.is_rag_enabled):
+            self.conversation_service.manage_context_window("assistant", message)
         logger.info(f"Appending assistant message: {message}")
 
         # Save the output to a markdown file
         saved_path = save_llm_output(message, thinking)
         logger.info(f"Saved LLM output to: {saved_path}")
+
+    def _format_retrieval_info(self, retrieval_info: Dict) -> str:
+        """
+        Format retrieval information for display in the thinking pane.
+        
+        Args:
+            retrieval_info: Dictionary containing retrieval results
+            
+        Returns:
+            str: Formatted retrieval information text
+        """
+        total_matches = retrieval_info.get('total_matches', 0)
+        matches = retrieval_info.get('matches', [])
+        search_time = retrieval_info.get('search_time_ms', 0)
+        
+        if total_matches == 0:
+            return "No relevant documents found in knowledge base."
+        
+        # Header with summary
+        lines = [
+            f"Retrieved {total_matches} document(s) from knowledge base",
+            f"Search completed in {search_time:.1f}ms",
+            ""
+        ]
+        
+        # List each document with similarity score
+        lines.append("Documents used:")
+        for i, match in enumerate(matches, 1):
+            filepath = match.get('filepath', 'Unknown')
+            similarity = match.get('similarity_score', 0.0)
+            lines.append(f"  {i}. {filepath} (relevance: {similarity:.3f})")
+        
+        return "\n".join(lines)
 
     def reset_state(self) -> None:
         """
@@ -165,7 +242,15 @@ class StateManager:
         """
         self.chat_control.text = []
         self.thinking_control.text = []
-        self.conversation_service = create_conversation_service()
+        
+        # Create new conversation service with same RAG settings
+        if self.enable_rag:
+            self.conversation_service = create_rag_conversation_service(rag_config=self.rag_config)
+        else:
+            self.conversation_service = create_conversation_service()
+        
+        # Update right pane service
+        self.right_pane_service = RightPaneService(self.conversation_service.messages_controller)
 
     def save_current_output(self) -> Optional[str]:
         """
@@ -198,7 +283,7 @@ class StateManager:
             FormattedText: Current formatted chat text
         """
         return self.chat_control.text
-        
+
     def get_thinking_text(self) -> FormattedText:
         """
         Get current thinking text.

@@ -259,7 +259,7 @@ def document_analysis_example():
     
     print(f"Found {results['total_matches']} relevant documents:")
     for match in results['matches']:
-        print(f"- {match['filename']} (score: {match['similarity_score']:.3f})")
+        print(f"- {match['filepath']} (score: {match['similarity_score']:.3f})")
     
     # Ask follow-up questions based on search results
     response, _, retrieval_info = service.generate_rag_response(

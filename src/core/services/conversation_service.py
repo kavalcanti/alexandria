@@ -130,7 +130,7 @@ class ConversationService:
                 "search_time_ms": retrieval_result.search_time_ms,
                 "matches": [
                     {
-                        "filename": match.filename,
+                        "filepath": match.filepath,
                         "content_preview": match.content[:200] + "..." if len(match.content) > 200 else match.content,
                         "similarity_score": match.similarity_score,
                         "content_type": match.content_type
@@ -167,7 +167,7 @@ class ConversationService:
                 {
                     "chunk_id": match.chunk_id,
                     "document_id": match.document_id,
-                    "filename": match.filename,
+                    "filepath": match.filepath,
                     "content": match.content,
                     "similarity_score": match.similarity_score,
                     "content_type": match.content_type

@@ -228,7 +228,7 @@ class RAGManager:
         for i, match in enumerate(retrieval_result.matches[:self.config.max_retrieval_results]):
             source_info = ""
             if self.config.include_source_metadata:
-                source_info = f" (Source: {match.filename})"
+                source_info = f" (Source: {match.filepath})"
             
             context_parts.append(f"{i+1}. {match.content.strip()}{source_info}")
         

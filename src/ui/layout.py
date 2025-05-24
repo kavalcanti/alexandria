@@ -43,6 +43,10 @@ def create_markdown_style() -> Style:
         'title': 'reverse',
         'line': '#666666',
         'shortcut': 'bold #ffaa00',  # orange
+        
+        # RAG-specific elements
+        'retrieval-info': 'italic #888888',  # gray italic for retrieval info
+        'knowledge-base': 'bold #0088cc',  # blue for knowledge base role
     })
 
 def create_layout_components() -> Tuple[HSplit, Buffer, FormattedTextControl, FormattedTextControl, ScrollablePane, ScrollablePane, Window, Style]:

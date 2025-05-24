@@ -36,7 +36,7 @@ def create_keybindings(
     - Ctrl+Up/Down: Scroll chat window
     - Shift+Up/Down: Scroll thinking window
     - Ctrl+O: Reset conversation
-    - Ctrl+Space: Send message
+    - Ctrl+Space: Send message (with RAG support)
     - Ctrl+S: Save current LLM output
     
     Args:
@@ -141,14 +141,14 @@ def create_keybindings(
     @kb.add('c-space')
     async def _(event) -> None:
         """
-        Handle message sending and AI response generation.
+        Handle message sending and AI response generation with RAG support.
         
         This function:
         1. Gets user input from the message buffer
         2. Updates UI to show AI is processing
         3. Adds user message to conversation
-        4. Generates AI response
-        5. Updates UI with AI response
+        4. Generates AI response (using RAG if available)
+        5. Updates UI with AI response and retrieval info
         6. Resets message buffer and focus
         
         Args:
@@ -168,9 +168,29 @@ def create_keybindings(
             state_manager.append_user_message(user_input)
             app.invalidate()
 
-            # Generate and add AI response
-            ai_answer, ai_thinking = await asyncio.to_thread(conversation_manager.generate_chat_response)
-            state_manager.append_assistant_message(ai_answer, ai_thinking)
+            # Check if RAG is enabled and use appropriate generation method
+            if (hasattr(conversation_manager, 'is_rag_enabled') and 
+                conversation_manager.is_rag_enabled and 
+                hasattr(conversation_manager, 'generate_rag_response')):
+                
+                logger.info("Using RAG-enabled response generation")
+                # Generate RAG response
+                ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(
+                    conversation_manager.generate_rag_response, user_input
+                )
+                state_manager.append_assistant_message(ai_answer, ai_thinking, retrieval_info)
+                
+                # Log retrieval info
+                if retrieval_info:
+                    logger.info(f"RAG retrieved {retrieval_info.get('total_matches', 0)} documents")
+                else:
+                    logger.info("No documents retrieved for RAG response")
+            else:
+                logger.info("Using standard response generation")
+                # Generate standard response
+                ai_answer, ai_thinking = await asyncio.to_thread(conversation_manager.generate_chat_response)
+                state_manager.append_assistant_message(ai_answer, ai_thinking)
+            
             app.invalidate()
             
             msg_buffer.text = ""
