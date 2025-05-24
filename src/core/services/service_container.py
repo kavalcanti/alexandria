@@ -12,6 +12,7 @@ from src.core.memory.llm_db_cnvs import ConversationsController
 from src.core.memory.llm_db_msg import MessagesController
 from src.core.managers.prompt_manager import LLMPromptManager
 from src.core.embedding.embedder import Embedder
+from src.core.retrieval.retrieval_interface import RetrievalInterface
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__)
@@ -34,6 +35,8 @@ class ServiceContainer:
         self._messages_controller: Optional[MessagesController] = None
         self._llm_controller: Optional[LLMController] = None
         self._prompt_controller: Optional[LLMPromptManager] = None
+        self._retrieval_interface: Optional[RetrievalInterface] = None
+        self._rag_manager: Optional['RAGManager'] = None
         
     @property
     def db_storage(self) -> DatabaseStorage:
@@ -82,6 +85,26 @@ class ServiceContainer:
             self._prompt_controller = LLMPromptManager()
             logger.debug("Created LLMPromptManager instance")
         return self._prompt_controller
+
+    @property
+    def retrieval_interface(self) -> RetrievalInterface:
+        """Get or create the retrieval interface."""
+        if self._retrieval_interface is None:
+            self._retrieval_interface = RetrievalInterface()
+            logger.debug("Created RetrievalInterface instance")
+        return self._retrieval_interface
+
+    @property 
+    def rag_manager(self) -> 'RAGManager':
+        """Get or create the RAG manager."""
+        if self._rag_manager is None:
+            # Import here to avoid circular dependency
+            from src.core.managers.rag_manager import RAGManager
+            self._rag_manager = RAGManager(
+                retrieval_interface=self.retrieval_interface
+            )
+            logger.debug("Created RAGManager instance")
+        return self._rag_manager
 
 
 # Global container instance - using singleton pattern for shared dependencies
