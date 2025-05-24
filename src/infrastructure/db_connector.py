@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import MetaData
 from src.infrastructure.db.db_config import get_engine, metadata
 from src.infrastructure.db.db_init import DatabaseInitializer
-from src.infrastructure.db.db_models import conversations_table, messages_table
+from src.infrastructure.db.db_models import conversations_table, messages_table, documents_table, document_chunks_table
 from src.infrastructure.db.db_utils import DatabaseInputValidator
 
 from src.logger import get_module_logger
@@ -47,6 +47,8 @@ class DatabaseStorage:
             # Initialize table references directly from imported models
             self.conversations_table = conversations_table
             self.messages_table = messages_table
+            self.documents_table = documents_table
+            self.document_chunks_table = document_chunks_table
 
             # Initialize and validate database schema
             self.db_initializer = DatabaseInitializer(self.engine, self.metadata)
