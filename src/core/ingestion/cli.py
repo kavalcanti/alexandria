@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from src.logger import get_module_logger
 from src.core.ingestion.document_ingestor import DocumentIngestor, IngestionConfig
 from src.core.ingestion.text_chunker import ChunkConfig, ChunkStrategy
+from src.core.ingestion.file_chunker import FileChunkConfig, FileChunkStrategy
 
 load_dotenv()
 
@@ -83,11 +84,21 @@ def add_common_args(parser: argparse.ArgumentParser):
     parser.add_argument('--overlap-size', type=int, default=100,
                        help='Overlap size between chunks in characters (default: 100)')
     
+    # Large file chunking options
+    parser.add_argument('--disable-large-file-chunking', action='store_true',
+                       help='Disable file-level chunking for large files')
+    parser.add_argument('--max-file-size', type=int, default=100,
+                       help='Maximum file size in MB before chunking (default: 100)')
+    parser.add_argument('--preferred-file-chunk-size', type=int, default=50,
+                       help='Preferred file chunk size in MB (default: 50)')
+    parser.add_argument('--file-chunk-strategy', type=str,
+                       choices=['size_based', 'line_based', 'markdown_section'],
+                       default='size_based',
+                       help='File chunking strategy (default: size_based)')
+    
     # Processing options
     parser.add_argument('--batch-size', type=int, default=50,
                        help='Number of files to process in each batch (default: 50)')
-    parser.add_argument('--max-workers', type=int, default=4,
-                       help='Maximum number of worker threads (default: 4)')
     parser.add_argument('--update-existing', action='store_true',
                        help='Update existing documents if they have changed')
     parser.add_argument('--force', action='store_true',
@@ -120,16 +131,35 @@ def create_chunk_config(args) -> ChunkConfig:
     )
 
 
+def create_file_chunk_config(args) -> FileChunkConfig:
+    """Create a FileChunkConfig from command-line arguments."""
+    strategy_map = {
+        'size_based': FileChunkStrategy.SIZE_BASED,
+        'line_based': FileChunkStrategy.LINE_BASED,
+        'markdown_section': FileChunkStrategy.MARKDOWN_SECTION,
+    }
+    
+    return FileChunkConfig(
+        max_chunk_size=args.max_file_size * 1024 * 1024,  # Convert MB to bytes
+        preferred_chunk_size=args.preferred_file_chunk_size * 1024 * 1024,  # Convert MB to bytes
+        strategy=strategy_map.get(args.file_chunk_strategy, FileChunkStrategy.SIZE_BASED),
+        overlap_lines=50,  # Default overlap
+        preserve_structure=True
+    )
+
+
 def create_ingestion_config(args) -> IngestionConfig:
     """Create an IngestionConfig from command-line arguments."""
     chunk_config = create_chunk_config(args)
+    file_chunk_config = create_file_chunk_config(args)
     
     return IngestionConfig(
         chunk_config=chunk_config,
+        file_chunk_config=file_chunk_config,
         batch_size=args.batch_size,
-        max_workers=args.max_workers,
         skip_existing=not args.force,
-        update_existing=args.update_existing
+        update_existing=args.update_existing,
+        enable_large_file_chunking=not args.disable_large_file_chunking
     )
 
 
@@ -188,6 +218,10 @@ def handle_ingest_dir(args) -> int:
         print(f"Recursive: {args.recursive}")
         print(f"Chunk strategy: {args.chunk_strategy}")
         print(f"Chunk size: {args.chunk_size} characters")
+        print(f"Large file chunking: {'enabled' if config.enable_large_file_chunking else 'disabled'}")
+        if config.enable_large_file_chunking:
+            print(f"Max file size: {args.max_file_size}MB")
+            print(f"File chunk strategy: {args.file_chunk_strategy}")
         print()
         
         result = ingestor.ingest_directory(directory_path, recursive=args.recursive)

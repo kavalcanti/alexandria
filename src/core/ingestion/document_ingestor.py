@@ -5,9 +5,6 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 from datetime import datetime
-import asyncio
-import concurrent.futures
-from contextlib import contextmanager
 
 from sqlalchemy import select, insert, update, and_, or_
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +15,7 @@ from src.infrastructure.db.db_models import documents_table, document_chunks_tab
 from src.core.embedding.embedder import Embedder
 from src.core.ingestion.document_processor import DocumentProcessor
 from src.core.ingestion.text_chunker import TextChunker, ChunkConfig, TextChunk
+from src.core.ingestion.file_chunker import FileChunker, FileChunkConfig
 
 logger = get_module_logger(__name__)
 
@@ -26,14 +24,17 @@ logger = get_module_logger(__name__)
 class IngestionConfig:
     """Configuration for document ingestion."""
     chunk_config: ChunkConfig = None
+    file_chunk_config: FileChunkConfig = None
     batch_size: int = 50  # Number of chunks to process in batch
-    max_workers: int = 4  # Number of worker threads for parallel processing
     skip_existing: bool = True  # Skip files that are already ingested
     update_existing: bool = False  # Update existing documents if they've changed
+    enable_large_file_chunking: bool = True  # Enable file-level chunking for large files
     
     def __post_init__(self):
         if self.chunk_config is None:
             self.chunk_config = ChunkConfig()
+        if self.file_chunk_config is None:
+            self.file_chunk_config = FileChunkConfig()
 
 
 @dataclass
@@ -61,6 +62,7 @@ class DocumentIngestor:
         self.embedder = Embedder()
         self.document_processor = DocumentProcessor()
         self.text_chunker = TextChunker(self.config.chunk_config)
+        self.file_chunker = FileChunker(self.config.file_chunk_config) if self.config.enable_large_file_chunking else None
         
         logger.info("Document ingestor initialized")
     
@@ -89,17 +91,20 @@ class DocumentIngestor:
                 logger.warning(f"No supported files found in {directory_path}")
                 return result
             
-            # Process files in batches
-            for i in range(0, len(supported_files), self.config.batch_size):
-                batch = supported_files[i:i + self.config.batch_size]
-                batch_results = self._process_file_batch(batch)
-                
-                # Aggregate results
-                result.processed_files += batch_results.processed_files
-                result.skipped_files += batch_results.skipped_files
-                result.failed_files += batch_results.failed_files
-                result.total_chunks += batch_results.total_chunks
-                result.errors.extend(batch_results.errors)
+            # Process files sequentially (simplified approach)
+            for file_path in supported_files:
+                try:
+                    file_result = self._process_single_file(file_path)
+                    self._aggregate_file_result(result, file_result, file_path)
+                except KeyboardInterrupt:
+                    logger.info("Keyboard interrupt received, stopping ingestion...")
+                    result.errors.append("Ingestion interrupted by user")
+                    break
+                except Exception as e:
+                    error_msg = f"Error processing {file_path}: {str(e)}"
+                    logger.error(error_msg)
+                    result.errors.append(error_msg)
+                    result.failed_files += 1
             
             logger.info(
                 f"Ingestion completed: {result.processed_files} processed, "
@@ -135,69 +140,17 @@ class DocumentIngestor:
                 result.failed_files = 1
                 return result
             
-            if not self.document_processor.is_supported_file(file_path):
-                error_msg = f"File type not supported: {file_path}"
-                logger.warning(error_msg)
-                result.errors.append(error_msg)
-                result.skipped_files = 1
-                return result
-            
-            # Process the single file
+            # Process the file
             file_result = self._process_single_file(file_path)
-            
-            if file_result['success']:
-                result.processed_files = 1
-                result.total_chunks = file_result['chunk_count']
-                logger.info(f"Successfully ingested {file_path} with {file_result['chunk_count']} chunks")
-            else:
-                result.failed_files = 1
-                result.errors.append(file_result['error'])
-                logger.error(f"Failed to ingest {file_path}: {file_result['error']}")
+            self._aggregate_file_result(result, file_result, file_path)
             
             return result
             
         except Exception as e:
-            error_msg = f"Error ingesting file {file_path}: {str(e)}"
-            logger.error(error_msg)
-            result.errors.append(error_msg)
+            logger.error(f"Error ingesting file {file_path}: {str(e)}")
+            result.errors.append(f"File ingestion error: {str(e)}")
             result.failed_files = 1
             return result
-    
-    def _process_file_batch(self, file_paths: List[Path]) -> IngestionResult:
-        """Process a batch of files, potentially in parallel."""
-        result = IngestionResult()
-        
-        if self.config.max_workers > 1:
-            # Parallel processing
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
-                future_to_file = {
-                    executor.submit(self._process_single_file, file_path): file_path 
-                    for file_path in file_paths
-                }
-                
-                for future in concurrent.futures.as_completed(future_to_file):
-                    file_path = future_to_file[future]
-                    try:
-                        file_result = future.result()
-                        self._aggregate_file_result(result, file_result, file_path)
-                    except Exception as e:
-                        error_msg = f"Error processing {file_path}: {str(e)}"
-                        logger.error(error_msg)
-                        result.errors.append(error_msg)
-                        result.failed_files += 1
-        else:
-            # Sequential processing
-            for file_path in file_paths:
-                try:
-                    file_result = self._process_single_file(file_path)
-                    self._aggregate_file_result(result, file_result, file_path)
-                except Exception as e:
-                    error_msg = f"Error processing {file_path}: {str(e)}"
-                    logger.error(error_msg)
-                    result.errors.append(error_msg)
-                    result.failed_files += 1
-        
-        return result
     
     def _aggregate_file_result(self, batch_result: IngestionResult, file_result: Dict[str, Any], file_path: Path):
         """Aggregate individual file result into batch result."""
@@ -233,6 +186,22 @@ class DocumentIngestor:
                         logger.debug(f"Skipping unchanged file: {file_path}")
                         return {'success': True, 'skipped': True, 'chunk_count': 0}
             
+            # Check if the file needs to be chunked at file level first
+            if (self.file_chunker is not None and 
+                self.file_chunker.should_chunk_file(file_path)):
+                
+                return self._process_large_file(file_path, file_metadata)
+            else:
+                return self._process_regular_file(file_path, file_metadata)
+            
+        except Exception as e:
+            error_msg = f"Error processing {file_path}: {str(e)}"
+            logger.error(error_msg)
+            return {'success': False, 'error': str(e)}
+    
+    def _process_regular_file(self, file_path: Path, file_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a regular-sized file."""
+        try:
             # Extract text content
             text_content = self.document_processor.extract_text_content(file_path)
             
@@ -254,9 +223,193 @@ class DocumentIngestor:
             return {'success': True, 'skipped': False, 'chunk_count': len(chunks)}
             
         except Exception as e:
-            error_msg = f"Error processing {file_path}: {str(e)}"
-            logger.error(error_msg)
+            logger.error(f"Error processing regular file {file_path}: {str(e)}")
             return {'success': False, 'error': str(e)}
+    
+    def _process_large_file(self, file_path: Path, file_metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a large file by chunking it first."""
+        total_chunks = 0
+        doc_id = None
+        
+        try:
+            # Create file chunks
+            file_chunks = self.file_chunker.chunk_file(file_path)
+            
+            if not file_chunks:
+                # Fall back to regular processing
+                return self._process_regular_file(file_path, file_metadata)
+            
+            logger.info(f"Processing {len(file_chunks)} file chunks for {file_path}")
+            
+            # Create document record first
+            doc_id = self._create_document_record(file_metadata)
+            
+            # Process each file chunk separately
+            for chunk_idx, file_chunk in enumerate(file_chunks):
+                try:
+                    logger.info(f"Processing file chunk {chunk_idx + 1}/{len(file_chunks)} (ID: {file_chunk.chunk_id})")
+                    
+                    # Extract text content from the chunk file
+                    chunk_text = self.document_processor.extract_text_content(file_chunk.temp_file_path)
+                    
+                    if chunk_text.strip():
+                        # Create text chunks from this file chunk
+                        text_chunks = self.text_chunker.chunk_text(chunk_text, file_metadata['content_type'])
+                        
+                        # Add metadata about the file chunk to each text chunk
+                        for chunk in text_chunks:
+                            chunk.metadata.update({
+                                'file_chunk_id': file_chunk.chunk_id,
+                                'file_chunk_index': file_chunk.chunk_index,
+                                'original_file_size': file_metadata['file_size']
+                            })
+                            
+                            # Add section metadata for markdown chunks
+                            if file_chunk.metadata:
+                                chunk.metadata.update(file_chunk.metadata)
+                        
+                        # Process and save this batch of chunks
+                        batch_count = self._save_chunks_batch(doc_id, text_chunks, total_chunks)
+                        total_chunks += batch_count
+                        
+                        logger.info(f"Saved {batch_count} chunks from file chunk {chunk_idx + 1}. Total: {total_chunks}")
+                        
+                except Exception as e:
+                    logger.error(f"Error processing file chunk {file_chunk.chunk_id}: {str(e)}")
+                    continue
+            
+            # Clean up temporary files
+            if self.file_chunker:
+                self.file_chunker.cleanup_temp_files()
+            
+            if total_chunks == 0:
+                if doc_id:
+                    self._delete_document_record(doc_id)
+                return {'success': False, 'error': 'No chunks were created from large file'}
+            
+            # Update document status
+            self._update_document_status(doc_id, 'completed', total_chunks)
+            
+            logger.info(f"Successfully processed large file {file_path}: {total_chunks} chunks")
+            return {'success': True, 'skipped': False, 'chunk_count': total_chunks}
+            
+        except Exception as e:
+            # Clean up on error
+            if self.file_chunker:
+                self.file_chunker.cleanup_temp_files()
+            if doc_id:
+                self._delete_document_record(doc_id)
+            logger.error(f"Error processing large file {file_path}: {str(e)}")
+            return {'success': False, 'error': str(e)}
+    
+    def _create_document_record(self, file_metadata: Dict[str, Any]) -> int:
+        """Create a document record and return its ID."""
+        try:
+            with self.db_storage.get_connection() as conn:
+                insert_query = insert(documents_table).values(
+                    filename=file_metadata['filename'],
+                    filepath=file_metadata['filepath'],
+                    file_hash=file_metadata['file_hash'],
+                    file_size=file_metadata['file_size'],
+                    mime_type=file_metadata['mime_type'],
+                    content_type=file_metadata['content_type'],
+                    last_modified=file_metadata['last_modified'],
+                    metadata={'extension': file_metadata['extension']},
+                    status='processing',
+                    chunk_count=0
+                )
+                
+                result = conn.execute(insert_query)
+                doc_id = result.inserted_primary_key[0]
+                conn.commit()
+                return doc_id
+                
+        except Exception as e:
+            logger.error(f"Error creating document record: {str(e)}")
+            raise
+    
+    def _save_chunks_batch(self, doc_id: int, chunks: List, start_index: int) -> int:
+        """Save a batch of chunks to the database and return count saved."""
+        try:
+            with self.db_storage.get_connection() as conn:
+                chunk_records = []
+                
+                for i, chunk in enumerate(chunks):
+                    try:
+                        # Generate embedding for the chunk
+                        embedding = self.embedder.embed(chunk.content)
+                        
+                        # Estimate token count
+                        token_count = self.text_chunker.estimate_token_count(chunk.content)
+                        
+                        chunk_record = {
+                            'document_id': doc_id,
+                            'chunk_index': start_index + i,
+                            'content': chunk.content,
+                            'content_hash': chunk.content_hash,
+                            'token_count': token_count,
+                            'char_count': chunk.char_count,
+                            'embedding': embedding.tolist(),  # Convert numpy array to list
+                            'metadata': chunk.metadata
+                        }
+                        
+                        chunk_records.append(chunk_record)
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing chunk {start_index + i}: {str(e)}")
+                        continue
+                
+                if chunk_records:
+                    # Batch insert chunks
+                    insert_chunks_query = insert(document_chunks_table)
+                    conn.execute(insert_chunks_query, chunk_records)
+                    conn.commit()
+                    return len(chunk_records)
+                
+                return 0
+                
+        except Exception as e:
+            logger.error(f"Error saving chunks batch: {str(e)}")
+            raise
+    
+    def _update_document_status(self, doc_id: int, status: str, chunk_count: int):
+        """Update document status and chunk count."""
+        try:
+            with self.db_storage.get_connection() as conn:
+                update_query = update(documents_table).where(
+                    documents_table.c.id == doc_id
+                ).values(
+                    status=status,
+                    chunk_count=chunk_count,
+                    updated_at=datetime.now()
+                )
+                conn.execute(update_query)
+                conn.commit()
+                
+        except Exception as e:
+            logger.error(f"Error updating document status: {str(e)}")
+            raise
+    
+    def _delete_document_record(self, doc_id: int):
+        """Delete a document record and its chunks."""
+        try:
+            with self.db_storage.get_connection() as conn:
+                # Delete chunks first (should be handled by CASCADE, but be explicit)
+                delete_chunks_query = document_chunks_table.delete().where(
+                    document_chunks_table.c.document_id == doc_id
+                )
+                conn.execute(delete_chunks_query)
+                
+                # Delete document
+                delete_doc_query = documents_table.delete().where(
+                    documents_table.c.id == doc_id
+                )
+                conn.execute(delete_doc_query)
+                conn.commit()
+                
+        except Exception as e:
+            logger.error(f"Error deleting document record: {str(e)}")
+            # Don't raise here as this is cleanup
     
     def _get_existing_document(self, file_hash: str) -> Optional[Dict[str, Any]]:
         """Check if a document with the given hash already exists."""
@@ -431,4 +584,6 @@ class DocumentIngestor:
                     
         except Exception as e:
             logger.error(f"Error deleting document: {str(e)}")
-            return False 
+            return False
+    
+ 
