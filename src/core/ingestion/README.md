@@ -13,7 +13,7 @@ This module provides comprehensive document ingestion capabilities for the Alexa
 - `.ini`, `.cfg`, `.conf`, `.log`, `.csv`
 
 **Document Files:**
-- `.pdf` (requires PyPDF2 or pdfplumber)
+- `.pdf` (requires pdfplumber)
 - `.docx` (requires python-docx)
 - `.doc`, `.rtf`, `.odt` (limited support)
 
