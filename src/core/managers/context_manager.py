@@ -63,7 +63,7 @@ class ContextManager:
     def _inject_system_prompt(self) -> None:
         """Inject the system prompt into the context window at the beginning.
 
-        Retrieves the set system prompt from the prompt controller and adds it
+        Retrieves the set system prompt from the prompt manager and adds it
         as the first message in the context window.
 
         Returns:

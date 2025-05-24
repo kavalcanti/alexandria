@@ -6,7 +6,7 @@ thinking process display, and conversation context management.
 """
 from typing import Optional, List, Dict, Tuple, TypeAlias
 from prompt_toolkit.layout.controls import FormattedTextControl
-from src.core.services.conversation_service import ConversationService
+from src.core.services.conversation_service import ConversationService, create_conversation_service
 from src.core.services.service_right_pane import RightPaneService
 from src.ui.markdown_formatter import MarkdownFormatter
 from src.logger import get_module_logger
@@ -165,7 +165,7 @@ class StateManager:
         """
         self.chat_control.text = []
         self.thinking_control.text = []
-        self.conversation_service = ConversationService()
+        self.conversation_service = create_conversation_service()
 
     def save_current_output(self) -> Optional[str]:
         """

@@ -1,90 +1,52 @@
 """
 Main conversation service that acts as a facade for conversation management.
 
-This service bootstraps the backend and manages conversation managers and controllers.
-It provides a unified interface for all conversation-related functionality and serves
-as the main entry point for the UI layer.
+This service provides a unified interface for conversation-related functionality
+and serves as the main entry point for the UI layer. It focuses purely on
+business logic coordination without handling dependency creation.
 
 The service coordinates:
 - Context management for conversation history
 - LLM interactions and response generation
-- Database operations for conversations and messages
-- Prompt management
+- Message management
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any, Optional
 from src.logger import get_module_logger
-from src.infrastructure.llm_controller import LLMController
-from src.infrastructure.db_connector import DatabaseStorage
 from src.core.managers.context_manager import ContextManager
 from src.core.managers.llm_manager import LLMManager
-from src.core.memory.llm_db_cnvs import ConversationsController
 from src.core.memory.llm_db_msg import MessagesController
-from src.core.managers.prompt_manager import LLMPromptManager
-from src.core.embedding.embedder import Embedder
 
 logger = get_module_logger(__name__) 
 
 class ConversationService:
     def __init__(
-        self, 
-        context_window_len: int = 5, 
-        conversation_id: Optional[int] = None, 
-        load_latest_system: bool = True
+        self,
+        conversation_id: int,
+        context_manager: ContextManager,
+        llm_manager: LLMManager,
+        messages_controller: MessagesController
     ) -> None:
         """
-        Initialize the conversation service with all required components.
+        Initialize the conversation service with injected dependencies.
 
-        This constructor sets up all necessary controllers and managers for handling
-        conversations, including database storage, context management, and LLM interactions.
+        This constructor now follows dependency injection principles, receiving
+        all required components as parameters rather than creating them internally.
+        This makes the service more testable and follows the Single Responsibility Principle.
 
         Args:
-            context_window_len: Number of messages to maintain in the context window.
-                Defaults to 5.
-            conversation_id: Optional ID of an existing conversation to load.
-                If None, creates a new conversation. Defaults to None.
-            load_latest_system: Whether to load only the most recent system message.
-                Defaults to True.
+            conversation_id: ID of the conversation this service manages
+            context_manager: Manager for handling conversation context and history
+            llm_manager: Manager for LLM interactions and response generation
+            messages_controller: Controller for message database operations
 
         Returns:
             None
         """
-        # Initialize shared dependencies
-        self.db_storage = DatabaseStorage()
-        self.embedder = Embedder()
-        self.conversations_controller = ConversationsController(self.db_storage)
-        self.messages_controller = MessagesController(self.db_storage)
-        self.llm_controller = LLMController()
-        self.prompt_controller = LLMPromptManager()
-        
-        # Initialize conversation ID
-        if conversation_id is None:
-            self.conversation_id = self.conversations_controller.get_next_conversation_id()
-            self.conversations_controller.insert_single_conversation(self.conversation_id)
-        else:
-            self.conversation_id = conversation_id
-            if not self.conversations_controller.conversation_exists(self.conversation_id):
-                self.conversations_controller.insert_single_conversation(self.conversation_id)
-
-        # Initialize context manager first as the source of truth for context window
-        self.context_manager = ContextManager(
-            context_window_len=context_window_len,
-            conversation_id=self.conversation_id,
-            load_latest_system=load_latest_system,
-            messages_controller=self.messages_controller,
-            conversations_controller=self.conversations_controller,
-            llm_controller=self.llm_controller,
-            prompt_controller=self.prompt_controller
-        )
-
-        # Initialize LLM service with reference to context manager
-        self.llm_manager = LLMManager(
-            msg_service=self.context_manager,
-            conversation_id=self.conversation_id,
-            load_latest_system=load_latest_system,
-            conversations_controller=self.conversations_controller,
-            llm_controller=self.llm_controller
-        )
+        self.conversation_id = conversation_id
+        self.context_manager = context_manager
+        self.llm_manager = llm_manager
+        self.messages_controller = messages_controller
 
         logger.info(f"Conversation Service initialized with conversation ID: {self.conversation_id}")
 
@@ -129,3 +91,31 @@ class ConversationService:
             List[Dict[str, Any]]: A list of message dictionaries in the current context window
         """
         return self.context_manager.context_window 
+
+# Convenience function for backward compatibility and easy service creation
+def create_conversation_service(
+    context_window_len: int = 5,
+    conversation_id: Optional[int] = None,
+    load_latest_system: bool = True
+) -> ConversationService:
+    """
+    Create a ConversationService instance using the factory pattern.
+    
+    This function provides backward compatibility with the original constructor
+    while using the new dependency injection architecture under the hood.
+    
+    Args:
+        context_window_len: Number of messages to maintain in context window
+        conversation_id: Optional existing conversation ID
+        load_latest_system: Whether to load only the most recent system message
+        
+    Returns:
+        ConversationService: Fully configured service instance
+    """
+    from src.core.services.conversation_service_factory import ConversationServiceFactory
+    factory = ConversationServiceFactory()
+    return factory.create_conversation_service(
+        context_window_len=context_window_len,
+        conversation_id=conversation_id,
+        load_latest_system=load_latest_system
+    ) 

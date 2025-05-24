@@ -6,7 +6,7 @@ import os
 from dotenv import load_dotenv
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout.layout import Layout
-from src.core.services.conversation_service import ConversationService
+from src.core.services.conversation_service import create_conversation_service
 from src.ui.layout import create_layout_components
 from src.ui.keybindings import create_keybindings
 from src.ui.state_manager import StateManager
@@ -36,7 +36,7 @@ def create_application(conversation_id=None):
     ) = create_layout_components()
 
     # Create conversation manager with specified ID or default
-    conversation_service = ConversationService(
+    conversation_service = create_conversation_service(
         conversation_id=conversation_id  # None by default, which will create a new conversation
     )
 
