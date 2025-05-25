@@ -18,5 +18,5 @@ logs/*
 # Large files
 ai_models/*
 datasets/*
-examples/*
+tests/
 .todo
