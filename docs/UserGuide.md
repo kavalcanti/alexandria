@@ -17,7 +17,7 @@ Alexandria features a sophisticated terminal-based interface with three main sec
 ### Basic Commands
 
 - `Ctrl+Space`: Send message (standard generation - no RAG)
-- `Shift+Space`: Send message (RAG-enabled generation)
+- `Ctrl+R`: Send message (RAG-enabled generation)
 - `Ctrl+Q`: Quit application
 - `Ctrl+O`: Reset conversation (clears history and context)
 
