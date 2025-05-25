@@ -199,10 +199,6 @@ class StateManager:
         self.conversation_service.manage_context_window("assistant", message)
         logger.debug(f"Appending assistant message: {message}")
 
-        # Save the output to a markdown file
-        saved_path = save_llm_output(message, thinking)
-        logger.info(f"Saved LLM output to: {saved_path}")
-
     def _format_retrieval_info(self, retrieval_info: Dict) -> str:
         """
         Format retrieval information for display in the thinking pane.
@@ -262,21 +258,27 @@ class StateManager:
         Returns:
             Optional[str]: Path to the saved file if there was output to save, None otherwise
         """
-        # Get the most recent assistant message and thinking from the context window
-        for message in self.conversation_service.context_window:
+        # Get the most recent assistant message by iterating in reverse order
+        latest_assistant_message = None
+        for message in reversed(self.conversation_service.context_window):
             if message.get('role') == 'assistant':
-                content = message.get('content', '')
-                # Get the most recent thinking message
-                thinking_messages = self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id)
-                thinking = thinking_messages[0] if thinking_messages else None
-                
-                # Save to file
-                saved_path = save_llm_output(content, thinking)
-                logger.info(f"Manually saved LLM output to: {saved_path}")
-                return saved_path
+                latest_assistant_message = message
+                break
+        
+        if latest_assistant_message:
+            content = latest_assistant_message.get('content', '')
+            
+            # Get the most recent thinking message
+            thinking_messages = self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id)
+            thinking = thinking_messages[0] if thinking_messages else None
+            
+            # Save to file
+            saved_path = save_llm_output(content, thinking)
+            logger.info(f"Manually saved latest LLM output to: {saved_path}")
+            return saved_path
         
         logger.info("No assistant message found to save")
-        return None 
+        return None
 
     def get_chat_text(self) -> FormattedText:
         """

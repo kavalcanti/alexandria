@@ -27,14 +27,22 @@ def save_llm_output(content: str, thinking: Optional[str] = None) -> str:
     
     filepath = os.path.join(save_dir, filename)
     
-    # Format the content
-    output = f"# LLM Output - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    # Format the content with enhanced metadata
+    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    output = f"# LLM Output\n\n"
+    output += f"**Saved:** {current_time}  \n"
+    output += f"**File:** {filename}\n\n"
+    output += "---\n\n"
     output += "## Response\n\n"
     output += content + "\n"
     
     if thinking:
-        output += "\n## Thinking Process\n\n"
+        output += "\n---\n\n"
+        output += "## Thinking Process\n\n"
         output += thinking + "\n"
+    
+    output += "\n---\n\n"
+    output += "*This output was saved from Alexandria terminal interface*\n"
     
     # Save to file
     with open(filepath, "w", encoding="utf-8") as f:

@@ -269,7 +269,6 @@ def create_keybindings(
         """
         saved_path = state_manager.save_current_output()
         if saved_path:
-            state_manager.save_current_output()
             logger.info(f"Output saved to: {saved_path}")
         else:
             msg_buffer.text = "No LLM output to save"
