@@ -47,6 +47,8 @@ class StateManager:
         self.rag_config = rag_config
         self.markdown_formatter = MarkdownFormatter()
         self.right_pane_service = RightPaneService(self.conversation_service.messages_controller)
+        # Store the latest retrieval info for saving
+        self.latest_retrieval_info: Optional[Dict] = None
         # Initialize empty state
         self.chat_control.text = []
         self.thinking_control.text = []
@@ -168,6 +170,10 @@ class StateManager:
         Returns:
             None
         """
+        # Store retrieval info for saving
+        if retrieval_info:
+            self.latest_retrieval_info = retrieval_info
+        
         # Handle thinking process
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
@@ -241,6 +247,7 @@ class StateManager:
         """
         self.chat_control.text = []
         self.thinking_control.text = []
+        self.latest_retrieval_info = None
         
         # Create new conversation service with same RAG settings
         if self.enable_rag:
@@ -272,8 +279,13 @@ class StateManager:
             thinking_messages = self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id)
             thinking = thinking_messages[0] if thinking_messages else None
             
+            # Use stored retrieval info if available
+            retrieval_info_text = None
+            if self.latest_retrieval_info and self.latest_retrieval_info.get('total_matches', 0) > 0:
+                retrieval_info_text = self._format_retrieval_info(self.latest_retrieval_info)
+            
             # Save to file
-            saved_path = save_llm_output(content, thinking)
+            saved_path = save_llm_output(content, thinking, retrieval_info_text)
             logger.info(f"Manually saved latest LLM output to: {saved_path}")
             return saved_path
         

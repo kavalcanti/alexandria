@@ -238,6 +238,10 @@ def create_keybindings(
                 state_manager.chat_control.text = formatted_message + state_manager.chat_control.text
                 logger.info(f"Appending assistant message: {ai_answer}")
                 
+                # Store retrieval info for saving
+                if retrieval_info:
+                    state_manager.latest_retrieval_info = retrieval_info
+                
                 # Log retrieval info
                 if retrieval_info:
                     logger.info(f"RAG retrieved {retrieval_info.get('total_matches', 0)} documents")

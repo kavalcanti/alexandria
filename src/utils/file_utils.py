@@ -6,13 +6,14 @@ import os
 from datetime import datetime
 from typing import Optional
 
-def save_llm_output(content: str, thinking: Optional[str] = None) -> str:
+def save_llm_output(content: str, thinking: Optional[str] = None, retrieval_info: Optional[str] = None) -> str:
     """
     Save LLM output to a markdown file in the datasets/saved directory.
     
     Args:
         content (str): The main LLM response content
         thinking (Optional[str]): Optional thinking/reasoning process
+        retrieval_info (Optional[str]): Optional knowledge base retrieval information
         
     Returns:
         str: Path to the saved file
@@ -29,12 +30,15 @@ def save_llm_output(content: str, thinking: Optional[str] = None) -> str:
     
     # Format the content with enhanced metadata
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    output = f"# LLM Output\n\n"
-    output += f"**Saved:** {current_time}  \n"
-    output += f"**File:** {filename}\n\n"
+    output = f"# {os.getenv('HF_MODEL')}\n"
     output += "---\n\n"
     output += "## Response\n\n"
     output += content + "\n"
+    
+    if retrieval_info:
+        output += "\n---\n\n"
+        output += "## Knowledge Base Sources\n\n"
+        output += retrieval_info + "\n"
     
     if thinking:
         output += "\n---\n\n"
