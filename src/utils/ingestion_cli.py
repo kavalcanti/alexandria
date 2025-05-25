@@ -25,19 +25,19 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   # Ingest a single file
-  python -m src.core.ingestion.cli ingest-file /path/to/document.pdf
+  python -m src.utils.ingestion_cli ingest-file /path/to/document.pdf
   
   # Ingest all files in a directory
-  python -m src.core.ingestion.cli ingest-dir /path/to/documents
+  python -m src.utils.ingestion_cli ingest-dir /path/to/documents
   
   # Ingest with custom chunk size
-  python -m src.core.ingestion.cli ingest-dir /path/to/docs --chunk-size 1500
+  python -m src.utils.ingestion_cli ingest-dir /path/to/docs --chunk-size 1500
   
   # Show ingestion statistics
-  python -m src.core.ingestion.cli stats
+  python -m src.utils.ingestion_cli stats
   
   # List supported file types
-  python -m src.core.ingestion.cli supported-types
+  python -m src.utils.ingestion_cli supported-types
         """
     )
     

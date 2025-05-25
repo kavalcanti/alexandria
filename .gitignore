@@ -11,10 +11,11 @@ wheels/
 .conda
 .env
 
-# Lose files
+# Loose files
 debug.log
 docs/TODOs.md
 logs/*
+docs/architecture/
 # Large files
 ai_models/*
 datasets/*

@@ -31,19 +31,19 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   # Ask a question using RAG
-  python -m src.core.tools.rag_cli ask "What is machine learning?"
+  python -m src.utils.rag_cli ask "What is machine learning?"
   
   # Interactive RAG session
-  python -m src.core.tools.rag_cli interactive
+  python -m src.utils.rag_cli interactive
   
   # Search documents without generation
-  python -m src.core.tools.rag_cli search "neural networks"
+  python -m src.utils.rag_cli search "neural networks"
   
   # Test with custom RAG configuration
-  python -m src.core.tools.rag_cli ask "Tell me about AI" --max-results 10 --min-similarity 0.5
+  python -m src.utils.rag_cli ask "Tell me about AI" --max-results 10 --min-similarity 0.5
   
   # Get RAG system statistics
-  python -m src.core.tools.rag_cli stats
+  python -m src.utils.rag_cli stats
         """
     )
     

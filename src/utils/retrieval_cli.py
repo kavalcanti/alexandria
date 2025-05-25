@@ -25,31 +25,31 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 Examples:
   # Basic document search
-  python -m src.core.retrieval.cli search "machine learning algorithms"
+  python -m src.utils.retrieval_cli search "machine learning algorithms"
   
   # Search with similarity threshold
-  python -m src.core.retrieval.cli search "neural networks" --min-similarity 0.7
+  python -m src.utils.retrieval_cli search "neural networks" --min-similarity 0.7
   
   # Search in specific documents
-  python -m src.core.retrieval.cli search-docs "data analysis" --document-ids 1,2,3
+  python -m src.utils.retrieval_cli search-docs "data analysis" --document-ids 1,2,3
   
   # Search by content type
-  python -m src.core.retrieval.cli search-type "python programming" --content-types pdf,text
+  python -m src.utils.retrieval_cli search-type "python programming" --content-types pdf,text
   
   # Search recent documents
-  python -m src.core.retrieval.cli search-recent "database design" --days-back 7
+  python -m src.utils.retrieval_cli search-recent "database design" --days-back 7
   
   # Get document content
-  python -m src.core.retrieval.cli get-content 1
+  python -m src.utils.retrieval_cli get-content 1
   
   # Find related content
-  python -m src.core.retrieval.cli find-related 123
+  python -m src.utils.retrieval_cli find-related 123
   
   # Search with context
-  python -m src.core.retrieval.cli search-context "artificial intelligence" --context-size 2
+  python -m src.utils.retrieval_cli search-context "artificial intelligence" --context-size 2
   
   # Get retrieval statistics
-  python -m src.core.retrieval.cli stats
+  python -m src.utils.retrieval_cli stats
         """
     )
     
@@ -480,7 +480,7 @@ def handle_stats(args) -> int:
 def handle_test_embedding(args) -> int:
     """Handle the test-embedding command."""
     try:
-        from src.core.embedding.embedder import Embedder
+        from infrastructure.embedder import Embedder
         import time
         
         embedder = Embedder()

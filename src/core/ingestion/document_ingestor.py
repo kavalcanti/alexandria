@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from src.logger import get_module_logger
 from src.infrastructure.db_connector import DatabaseStorage
 from src.infrastructure.db.db_models import documents_table, document_chunks_table
-from src.core.embedding.embedder import Embedder
+from src.infrastructure.embedder import Embedder
 from src.core.ingestion.document_processor import DocumentProcessor
 from src.core.ingestion.text_chunker import TextChunker, ChunkConfig, TextChunk
 from src.core.ingestion.file_chunker import FileChunker, FileChunkConfig
