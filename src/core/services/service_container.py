@@ -11,7 +11,7 @@ from src.infrastructure.db_connector import DatabaseStorage
 from src.core.memory.llm_db_cnvs import ConversationsController
 from src.core.memory.llm_db_msg import MessagesController
 from src.core.managers.prompt_manager import LLMPromptManager
-from src.core.embedding.embedder import Embedder
+from src.infrastructure.embedder import Embedder
 from src.core.retrieval.retrieval_interface import RetrievalInterface
 from src.logger import get_module_logger
 

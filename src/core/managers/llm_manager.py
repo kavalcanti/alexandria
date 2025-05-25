@@ -2,7 +2,7 @@ from typing import List, Dict, Tuple, Optional, Any
 
 from src.core.memory.llm_db_cnvs import ConversationsController
 from src.infrastructure.llm_controller import LLMController
-from src.core.embedding.embedder import Embedder
+from src.infrastructure.embedder import Embedder
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__) 
@@ -69,14 +69,14 @@ class LLMManager:
         
         if window_len in [3, 4]:  # One exchange (user + assistant) with optional system message
             self._generate_conversation_title()
-        logger.info(f"Generating response.")
+        logger.info(f"Generating standard response.")
         logger.debug(f"Context window: {context_window}")
         llm_answer, llm_thinking = self.llm_controller.generate_response_from_context(
             context_window, 
             thinking_model, 
             max_new_tokens
         )
-        logger.info(f"Response generated")
+        logger.info(f"Standard response generated")
         logger.debug(f"Thinking: {llm_thinking}")
         logger.debug(f"Response: {llm_answer}")
       
@@ -105,7 +105,7 @@ class LLMManager:
         title_prompt = [
             {
                 'role': 'system',
-                'content': 'You are an expert at summarizing conversations. Based on the following exchange, generate a concise and descriptive title (max 120 characters).'
+                'content': 'You summarise conversations to output a concise and descriptive title. Apply no formatting or emojis. (max 120 characters).'
             }
         ] + context_window
 

@@ -9,7 +9,7 @@ from sqlalchemy.engine import Connection
 
 from src.infrastructure.db_connector import DatabaseStorage
 from src.infrastructure.db.db_models import documents_table, document_chunks_table
-from src.core.embedding.embedder import Embedder
+from src.infrastructure.embedder import Embedder
 from src.logger import get_module_logger
 from .models import SearchQuery, SearchResult, DocumentMatch
 

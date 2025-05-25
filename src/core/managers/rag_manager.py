@@ -27,6 +27,10 @@ class RAGConfig:
     context_size: int = 1
     retrieval_query_enhancement: bool = True
     include_source_metadata: bool = True
+    
+    # New configuration options for cleaner design
+    auto_manage_context: bool = True
+    separate_retrieval_context: bool = True
 
 
 class RAGManager:
@@ -35,6 +39,9 @@ class RAGManager:
     
     Coordinates between vector search retrieval and LLM generation to provide
     contextually-aware responses based on document knowledge.
+    
+    This class acts as a clean orchestrator between retrieval and generation,
+    without the messy context manipulation of the previous design.
     """
     
     def __init__(
@@ -72,6 +79,9 @@ class RAGManager:
         """
         Generate a response using retrieval-augmented generation.
         
+        This method cleanly separates concerns: retrieval, context building,
+        and generation without messy context manipulation.
+        
         Args:
             user_query: User's question or prompt
             thinking_model: Whether to use thinking capabilities
@@ -82,69 +92,164 @@ class RAGManager:
         """
         retrieval_result = None
         
+        # Store the original query in context if auto-managing
+        if self.config.auto_manage_context and self.context_manager:
+            self.context_manager.manage_context_window('user', user_query)
+        
         if self.config.enable_retrieval:
             # Perform retrieval search
             retrieval_result = self._perform_retrieval(user_query)
             
-            # Inject retrieved context if found relevant documents
+            # Generate response with or without retrieval context
             if retrieval_result and retrieval_result.matches:
-                augmented_query = self._augment_query_with_context(user_query, retrieval_result)
-                
-                # Update context with augmented query
-                if self.context_manager:
-                    # Store original query
-                    self.context_manager.manage_context_window('user', user_query)
-                    
-                    # Use augmented query for generation but don't store it
-                    temp_context = self.context_manager.context_window.copy()
-                    temp_context[-1]['content'] = augmented_query
-                    
-                    # Temporarily override context for generation
-                    original_context = self.context_manager.context_window
-                    self.context_manager.context_window = temp_context
-                    
-                    try:
-                        # Generate response with augmented context
-                        response, thinking = self.llm_manager.generate_chat_response(
-                            thinking_model=thinking_model,
-                            max_new_tokens=max_new_tokens
-                        )
-                    finally:
-                        # Restore original context
-                        self.context_manager.context_window = original_context
-                else:
-                    # Direct generation without context manager
-                    response, thinking = self.llm_manager.generate_chat_response(
-                        thinking_model=thinking_model,
-                        max_new_tokens=max_new_tokens
-                    )
+                response, thinking = self._generate_with_retrieval_context(
+                    user_query, retrieval_result, thinking_model, max_new_tokens
+                )
             else:
-                # No relevant documents found, proceed normally
-                if self.context_manager:
-                    self.context_manager.manage_context_window('user', user_query)
-                
-                response, thinking = self.llm_manager.generate_chat_response(
-                    thinking_model=thinking_model,
-                    max_new_tokens=max_new_tokens
+                response, thinking = self._generate_without_retrieval(
+                    user_query, thinking_model, max_new_tokens
                 )
         else:
             # RAG disabled, use standard generation
-            if self.context_manager:
-                self.context_manager.manage_context_window('user', user_query)
-            
-            response, thinking = self.llm_manager.generate_chat_response(
-                thinking_model=thinking_model,
-                max_new_tokens=max_new_tokens
+            response, thinking = self._generate_without_retrieval(
+                user_query, thinking_model, max_new_tokens
             )
         
         # Store assistant response in context
-        if self.context_manager:
+        if self.config.auto_manage_context and self.context_manager:
             self.context_manager.manage_context_window('assistant', response)
             if thinking:
                 self.context_manager.manage_context_window('assistant-reasoning', thinking)
         
         logger.info(f"RAG response generated with retrieval: {retrieval_result is not None}")
         return response, thinking, retrieval_result
+
+    def _generate_with_retrieval_context(
+        self,
+        user_query: str,
+        retrieval_result: SearchResult,
+        thinking_model: bool,
+        max_new_tokens: int
+    ) -> Tuple[str, str]:
+        """
+        Generate response with retrieval context using clean approach.
+        
+        Instead of messy context manipulation, we build a proper
+        context window that includes retrieval information.
+        """
+        if self.config.separate_retrieval_context:
+            # Build a clean context with retrieval information
+            augmented_context = self._build_retrieval_context(user_query, retrieval_result)
+            
+            # Generate response using a clean, temporary LLM manager instance
+            # or direct call with custom context
+            response, thinking = self._generate_with_custom_context(
+                augmented_context, thinking_model, max_new_tokens
+            )
+        else:
+            # Alternative: augment the query directly and use normal generation
+            augmented_query = self._augment_query_with_context(user_query, retrieval_result)
+            
+            # Generate with augmented query (requires temporary context if using context manager)
+            response, thinking = self._generate_without_retrieval(
+                augmented_query, thinking_model, max_new_tokens
+            )
+        
+        return response, thinking
+
+    def _generate_without_retrieval(
+        self,
+        query: str,
+        thinking_model: bool,
+        max_new_tokens: int
+    ) -> Tuple[str, str]:
+        """Generate response without retrieval context."""
+        if not self.config.auto_manage_context and self.context_manager:
+            # If not auto-managing, add the query to context for this generation
+            self.context_manager.manage_context_window('user', query)
+        
+        return self.llm_manager.generate_chat_response(
+            thinking_model=thinking_model,
+            max_new_tokens=max_new_tokens
+        )
+
+    def _build_retrieval_context(self, user_query: str, retrieval_result: SearchResult) -> List[Dict[str, str]]:
+        """
+        Build a clean context window that includes retrieval information.
+        
+        This replaces the messy context manipulation with a clean approach.
+        """
+        # Start with current context or empty context
+        if self.context_manager:
+            base_context = self.context_manager.context_window.copy()
+        else:
+            base_context = []
+        
+        # Build retrieval context message
+        retrieval_context = self._format_retrieval_context(retrieval_result)
+        
+        # Create system message with retrieval context
+        retrieval_system_msg = {
+            'role': 'system',
+            'content': f"You have access to the following relevant information from the knowledge base:\n\n{retrieval_context}\n\nUse this information to provide accurate and comprehensive answers."
+        }
+        
+        # Build final context: system messages + retrieval context + conversation + current query
+        final_context = []
+        
+        # Add existing system messages
+        for msg in base_context:
+            if msg['role'] == 'system':
+                final_context.append(msg)
+        
+        # Add retrieval context as system message
+        final_context.append(retrieval_system_msg)
+        
+        # Add non-system messages from context
+        for msg in base_context:
+            if msg['role'] != 'system':
+                final_context.append(msg)
+        
+        # Add current user query
+        final_context.append({
+            'role': 'user',
+            'content': user_query
+        })
+        
+        return final_context
+
+    def _generate_with_custom_context(
+        self,
+        context: List[Dict[str, str]],
+        thinking_model: bool,
+        max_new_tokens: int
+    ) -> Tuple[str, str]:
+        """
+        Generate response using a custom context window.
+        
+        This is much cleaner than the previous approach of temporarily
+        modifying the context manager's state.
+        """
+        return self.llm_manager.llm_controller.generate_response_from_context(
+            context,
+            thinking_model,
+            max_new_tokens
+        )
+
+    def _format_retrieval_context(self, retrieval_result: SearchResult) -> str:
+        """
+        Format retrieval results into a clean context string.
+        """
+        context_parts = []
+        
+        for i, match in enumerate(retrieval_result.matches[:self.config.max_retrieval_results]):
+            source_info = ""
+            if self.config.include_source_metadata:
+                source_info = f" (Source: {match.filepath})"
+            
+            context_parts.append(f"[{i+1}] {match.content.strip()}{source_info}")
+        
+        return "\n\n".join(context_parts)
 
     def _perform_retrieval(self, query: str) -> Optional[SearchResult]:
         """
@@ -212,6 +317,8 @@ class RAGManager:
         """
         Augment the user query with retrieved context.
         
+        This is a simpler alternative to the separate context approach.
+        
         Args:
             query: Original user query
             retrieval_result: Results from document retrieval
@@ -223,16 +330,7 @@ class RAGManager:
             return query
         
         # Build context from retrieved documents
-        context_parts = []
-        
-        for i, match in enumerate(retrieval_result.matches[:self.config.max_retrieval_results]):
-            source_info = ""
-            if self.config.include_source_metadata:
-                source_info = f" (Source: {match.filepath})"
-            
-            context_parts.append(f"{i+1}. {match.content.strip()}{source_info}")
-        
-        context_text = "\n".join(context_parts)
+        context_text = self._format_retrieval_context(retrieval_result)
         
         # Create augmented prompt
         augmented_query = f"""{query}

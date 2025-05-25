@@ -174,7 +174,7 @@ class StateManager:
             self.thinking_control.text = formatted_thinking + self.thinking_control.text
             # Add thinking to context window for standard generation
             self.conversation_service.manage_context_window("assistant-reasoning", thinking)
-            logger.info(f"Appending assistant reasoning message: {thinking}")
+            logger.debug(f"Appending assistant reasoning message: {thinking}")
 
         # Handle retrieval information in the right pane
         if retrieval_info and retrieval_info.get('total_matches', 0) > 0:
@@ -197,7 +197,7 @@ class StateManager:
         
         # Add assistant message to context window for standard generation
         self.conversation_service.manage_context_window("assistant", message)
-        logger.info(f"Appending assistant message: {message}")
+        logger.debug(f"Appending assistant message: {message}")
 
         # Save the output to a markdown file
         saved_path = save_llm_output(message, thinking)
