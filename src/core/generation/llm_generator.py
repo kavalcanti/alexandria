@@ -7,6 +7,7 @@ from src.core.retrieval.models import DocumentMatch, SearchResult
 from src.infrastructure.llm_controller import LLMController
 from src.core.context.context_window import ContextWindow
 from src.core.generation.rag import RAGTools, RAGToolsConfig
+from src.core.memory.llm_db_msg import MessagesController
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__)
@@ -17,7 +18,8 @@ class LLMGenerator:
         retrieval_interface: Optional[RetrievalInterface] = None,
         context_window: Optional[ContextWindow] = None,
         llm_controller: Optional[LLMController] = None,
-        rag_config: Optional[RAGToolsConfig] = None
+        rag_config: Optional[RAGToolsConfig] = None,
+        messages_controller: Optional[MessagesController] = None
     ):
         """
         Initialize the LLM generator.
@@ -31,8 +33,8 @@ class LLMGenerator:
         self.retrieval_interface = retrieval_interface
         self.context_window = context_window
         self.llm_controller = llm_controller
-        self.rag_config = rag_config
-            
+        self.messages_controller = messages_controller
+        self.rag_config = rag_config            
         self.rag_tools = RAGTools(context_window, retrieval_interface, self.rag_config)
 
         logger.info("LLMGenerator initialized with retrieval integration")
@@ -86,8 +88,9 @@ class LLMGenerator:
 
         # Store assistant response in context
         self.context_window.add_message('assistant', response)
+        self.messages_controller.insert_single_message(self.context_window.conversation_id, 'assistant', response, 0)
         if thinking:
             self.context_window.add_message('assistant-reasoning', thinking)
-        
+            self.messages_controller.insert_single_message(self.context_window.conversation_id, 'assistant-reasoning', thinking, 0)
         logger.info(f"RAG response generated with retrieval: {retrieval_result is not None}")
         return response, thinking, retrieval_result

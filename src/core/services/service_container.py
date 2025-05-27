@@ -105,6 +105,7 @@ class ServiceContainer:
             retrieval_interface=self.retrieval_interface,
             context_window=context_window,
             llm_controller=self.llm_controller,
+            messages_controller=self.messages_controller,
             rag_config=self.rag_config
         )
 
