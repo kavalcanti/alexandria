@@ -171,7 +171,7 @@ def create_keybindings(
 
             logger.info("Using standard (RAG-less) response generation")
             # Always use standard response generation for Ctrl+Space
-            ai_answer, ai_thinking = await asyncio.to_thread(conversation_manager.generate_chat_response)
+            ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(conversation_manager.generate_chat_response)
             state_manager.append_assistant_message(ai_answer, ai_thinking)
             
             app.invalidate()
@@ -205,56 +205,40 @@ def create_keybindings(
             app.layout.focus(chat_formatted_text)
             msg_buffer.text = "AI is busy."
 
-            # Add user message to UI only (RAG manager will handle context)
-            formatted_message = state_manager._format_message('user', user_input)
-            state_manager.chat_control.text = formatted_message + state_manager.chat_control.text
+            state_manager.append_user_message(user_input)
             app.invalidate()
 
-            # Check if RAG is enabled and use appropriate generation method
-            if (hasattr(conversation_manager, 'is_rag_enabled') and 
-                conversation_manager.is_rag_enabled and 
-                hasattr(conversation_manager, 'generate_rag_response')):
-                
-                logger.info("Using RAG-enabled response generation")
-                # Generate RAG response (this handles context management internally)
-                ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(
-                    conversation_manager.generate_rag_response, user_input
+            logger.info("Using RAG-enabled response generation")
+            # Generate RAG response using the existing method with rag_enabled=True
+            ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(
+                conversation_manager.generate_chat_response, True, True, 8096
                 )
-                # Add response to UI only (RAG manager already handled context)
-                if ai_thinking:
-                    formatted_thinking = state_manager._format_message('assistant-reasoning', ai_thinking)
-                    state_manager.thinking_control.text = formatted_thinking + state_manager.thinking_control.text
-                    logger.info(f"Appending assistant reasoning message: {ai_thinking}")
-
-                # Handle retrieval information
-                if retrieval_info and retrieval_info.get('total_matches', 0) > 0:
-                    retrieval_text = state_manager._format_retrieval_info(retrieval_info)
-                    formatted_retrieval = state_manager._format_message('retrieval-info', retrieval_text)
-                    state_manager.thinking_control.text = formatted_retrieval + state_manager.thinking_control.text
-                    logger.info(f"Added retrieval info to thinking pane: {retrieval_info['total_matches']} documents")
-
-                # Add main assistant message to UI
-                formatted_message = state_manager._format_message('assistant', ai_answer)
-                state_manager.chat_control.text = formatted_message + state_manager.chat_control.text
-                logger.info(f"Appending assistant message: {ai_answer}")
-                
-                # Store retrieval info for saving
-                if retrieval_info:
-                    state_manager.latest_retrieval_info = retrieval_info
-                
-                # Log retrieval info
-                if retrieval_info:
-                    logger.info(f"RAG retrieved {retrieval_info.get('total_matches', 0)} documents")
+            
+            # Handle retrieval information
+            if retrieval_info:
+                # Handle SearchResult objects
+                if hasattr(retrieval_info, 'total_matches'):
+                    total_matches = retrieval_info.total_matches
                 else:
-                    logger.info("No documents retrieved for RAG response")
+                    total_matches = retrieval_info.get('total_matches', 0) if isinstance(retrieval_info, dict) else 0
+                
+                if total_matches > 0:
+                    state_manager.append_assistant_message(ai_answer, ai_thinking, retrieval_info=retrieval_info)
+                else:
+                    state_manager.append_assistant_message(ai_answer, ai_thinking)
             else:
-                logger.info("RAG not available, falling back to standard response generation")
-                # Fallback to standard response if RAG not available
-                # Add user message to context manually since we didn't use state_manager.append_user_message
-                conversation_manager.manage_context_window("user", user_input)
-                ai_answer, ai_thinking = await asyncio.to_thread(conversation_manager.generate_chat_response)
                 state_manager.append_assistant_message(ai_answer, ai_thinking)
             
+            # Log retrieval info
+            if retrieval_info:
+                if hasattr(retrieval_info, 'total_matches'):
+                    total_matches = retrieval_info.total_matches
+                else:
+                    total_matches = retrieval_info.get('total_matches', 0) if isinstance(retrieval_info, dict) else 0
+                logger.info(f"RAG retrieved {total_matches} documents")
+            else:
+                logger.info("No documents retrieved for RAG response")
+
             app.invalidate()
             
             msg_buffer.text = ""

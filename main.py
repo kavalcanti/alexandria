@@ -3,7 +3,7 @@ import argparse
 from prompt_toolkit.patch_stdout import patch_stdout
 import src.logger as logger
 from src.userland import application
-from src.core.managers.rag_manager import RAGConfig
+from src.core.generation.rag import RAGToolsConfig
 
 load_dotenv()
 
@@ -24,8 +24,6 @@ def parse_args():
                           help='Maximum number of retrieval results (default: 5)')
     rag_group.add_argument('--min-similarity', type=float, default=0.3,
                           help='Minimum similarity score for results (default: 0.3)')
-    rag_group.add_argument('--no-enhancement', action='store_true',
-                          help='Disable query enhancement')
     rag_group.add_argument('--no-metadata', action='store_true',
                           help='Exclude source metadata from responses')
     
@@ -36,11 +34,10 @@ if __name__ == "__main__":
     
     # Configure RAG based on command line arguments
     if not args.disable_rag:
-        rag_config = RAGConfig(
+        rag_config = RAGToolsConfig(
             enable_retrieval=True,
             max_retrieval_results=args.max_results,
             min_similarity_score=args.min_similarity,
-            retrieval_query_enhancement=not args.no_enhancement,
             include_source_metadata=not args.no_metadata
         )
         application.configure_rag(enable_rag=True, rag_config=rag_config)

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 from src.logger import get_module_logger
 from src.core.services.conversation_service import create_rag_conversation_service
-from src.core.managers.rag_manager import RAGConfig
+from src.core.generation.rag import RAGToolsConfig
 
 load_dotenv()
 
@@ -78,8 +78,6 @@ def add_rag_args(parser: argparse.ArgumentParser) -> None:
                        help='Maximum number of retrieval results (default: 5)')
     parser.add_argument('--min-similarity', type=float, default=0.3,
                        help='Minimum similarity score for results (default: 0.3)')
-    parser.add_argument('--no-enhancement', action='store_true',
-                       help='Disable query enhancement')
     parser.add_argument('--no-metadata', action='store_true', 
                        help='Exclude source metadata from responses')
     parser.add_argument('--disable-rag', action='store_true',
@@ -98,13 +96,12 @@ def add_output_args(parser: argparse.ArgumentParser) -> None:
                        help='Suppress non-essential output')
 
 
-def create_rag_config(args) -> RAGConfig:
+def create_rag_config(args) -> RAGToolsConfig:
     """Create RAG configuration from command line arguments."""
-    return RAGConfig(
+    return RAGToolsConfig(
         enable_retrieval=not getattr(args, 'disable_rag', False),
         max_retrieval_results=getattr(args, 'max_results', 5),
         min_similarity_score=getattr(args, 'min_similarity', 0.3),
-        retrieval_query_enhancement=not getattr(args, 'no_enhancement', False),
         include_source_metadata=not getattr(args, 'no_metadata', False)
     )
 
@@ -126,7 +123,7 @@ def handle_ask(args) -> int:
         if config.enable_retrieval and service.is_rag_enabled:
             response, thinking, retrieval_info = service.generate_rag_response(args.question)
         else:
-            service.manage_context_window('user', args.question)
+            service.add_message('user', args.question)
             response_tuple = service.generate_chat_response()
             response = response_tuple[0] if isinstance(response_tuple, tuple) else response_tuple
             thinking = response_tuple[1] if isinstance(response_tuple, tuple) and len(response_tuple) > 1 else ""
@@ -214,7 +211,7 @@ def handle_interactive(args) -> int:
                     if retrieval_info and retrieval_info['total_matches'] > 0:
                         print(f"\n[Used {retrieval_info['total_matches']} document(s) from knowledge base]")
                 else:
-                    service.manage_context_window('user', user_input)
+                    service.add_message('user', user_input)
                     response_tuple = service.generate_chat_response()
                     response = response_tuple[0] if isinstance(response_tuple, tuple) else response_tuple
                     print(response)
@@ -287,7 +284,6 @@ def handle_stats(args) -> int:
                 print(f"Retrieval enabled: {stats['config']['enable_retrieval']}")
                 print(f"Max results: {stats['config']['max_results']}")
                 print(f"Min similarity: {stats['config']['min_similarity']}")
-                print(f"Query enhancement: {stats['config']['query_enhancement']}")
                 print(f"Include metadata: {stats['config']['include_metadata']}")
             else:
                 print("RAG system not available")

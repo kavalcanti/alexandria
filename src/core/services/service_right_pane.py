@@ -9,27 +9,40 @@ from typing import List, Dict, Any
 from src.core.memory.llm_db_msg import MessagesController
 
 class RightPaneService:
-    def __init__(self, messages_controller: MessagesController) -> None:
+    def __init__(self, messages_controller: MessagesController, conversation_id: int) -> None:
         """
         Initialize the RightPaneService.
 
         Args:
             messages_controller (MessagesController): Controller for managing message operations.
+            conversation_id (int): The ID of the conversation to fetch reasoning messages for.
         """
-        self.messages_controller = messages_controller
+        self.messages_controller = messages_controller or MessagesController()
+
+        if conversation_id:
+            self.content = self.messages_controller.get_reasoning_messages(conversation_id)
+        else:
+            self.content = []
 
         return None
         
-    def get_thinking_messages(self, conversation_id: int) -> List[Dict[str, Any]]:
+    def get_right_pane_content(self) -> List[Dict[str, Any]]:
         """
-        Fetch the thinking messages for a specific conversation.
+        Fetch the reasoning messages for a specific conversation.
 
         Args:
-            conversation_id (int): The ID of the conversation to fetch thinking messages for.
+            conversation_id (int): The ID of the conversation to fetch reasoning messages for.
 
         Returns:
-            List[Dict[str, Any]]: A list of thinking messages with their associated metadata.
+            List[Dict[str, Any]]: A list of reasoning messages with their associated metadata.
         """
-        return self.messages_controller.get_thinking_messages(conversation_id)
+        return self.content
     
+    def add_content(self, content):
+        self.content.append(content)
     
+    def get_content(self):
+        return self.content
+    
+    def get_content_length(self):
+        return len(self.content)

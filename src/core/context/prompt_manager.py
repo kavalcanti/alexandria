@@ -18,9 +18,6 @@ class LLMPromptManager:
         Returns:
             None
         """
-        # Loads system prompts.
-        # Handles prompt injection.
-        # Defines specialist prompts.
         self._default_system_prompt: str = """You are an advanced AI assistant. You provide detailed, accurate, and helpful responses to user queries."""
         
         self._rag_system_prompt: str = """You are an advanced AI assistant with access to a knowledge base. When provided with relevant context from documents, use this information to provide comprehensive and accurate responses. Always acknowledge when you're using information from the provided context and cite sources when available."""
@@ -39,7 +36,7 @@ class LLMPromptManager:
         """
         return self._rag_system_prompt if use_rag else self._default_system_prompt
     
-    def user_prompt_injector(self, user_message: str, retrieval_context: Optional[str] = None) -> str:
+    def instert_retrieval_in_usr_msg(self, user_message: str, retrieval_context: Optional[str] = None) -> str:
         """
         Inject the user prompt with optional retrieval context.
 
@@ -55,56 +52,12 @@ class LLMPromptManager:
         else:
             return user_message
 
-    def format_retrieval_context(self, matches: List[Dict[str, Any]], include_metadata: bool = True) -> str:
-        """
-        Format retrieval matches into a context string.
-
-        Args:
-            matches: List of document matches from retrieval
-            include_metadata: Whether to include source metadata
-
-        Returns:
-            str: Formatted context string
-        """
-        if not matches:
-            return ""
-        
-        context_parts = []
-        for i, match in enumerate(matches):
-            content = match.get('content', '')
-            source_info = ""
-            
-            if include_metadata:
-                filename = match.get('filename', 'Unknown')
-                similarity = match.get('similarity_score', 0.0)
-                source_info = f" (Source: {filename}, Relevance: {similarity:.2f})"
-            
-            context_parts.append(f"{i+1}. {content.strip()}{source_info}")
-        
-        return "\n\n".join(context_parts)
-
-    def create_rag_prompt(self, user_query: str, context: str, include_instructions: bool = True) -> str:
-        """
-        Create a RAG-enhanced prompt with context.
-
-        Args:
-            user_query: The user's original question
-            context: Retrieved context from documents
-            include_instructions: Whether to include RAG-specific instructions
-
-        Returns:
-            str: Enhanced prompt with context and instructions
-        """
-        if include_instructions:
-            instructions = "\nPlease provide a comprehensive answer using the context above where relevant. If the context doesn't contain relevant information, please indicate that and answer based on your general knowledge."
-        else:
-            instructions = ""
-
-        return f"""{user_query}
-
-Based on the following relevant information from the knowledge base:
-
-{context}{instructions}"""
+    def insert_retrieval_in_system_prompt(self, retrieval_context: str) -> str:
+        retrieval_system_msg = {
+            'role': 'system',
+            'content': f"You have access to the following relevant information from the knowledge base:\n\n{retrieval_context}\n\nUse this information to provide accurate and comprehensive answers."
+        }
+        return retrieval_system_msg
 
     def get_thinking_prompt_enhancement(self) -> str:
         """

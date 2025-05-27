@@ -1,6 +1,10 @@
 import logging
 from logging.handlers import RotatingFileHandler
 import os
+from typing import Dict
+
+# Keep track of configured loggers to prevent duplicate handlers
+_configured_loggers: Dict[str, logging.Logger] = {}
 
 def _get_log_level(env_var='LOG_LEVEL', default='INFO'):
     """
@@ -24,14 +28,23 @@ def get_module_logger(module_path):
     Returns:
         Logger instance configured for the specific module
     """
+    # Return existing logger if already configured
+    if module_path in _configured_loggers:
+        return _configured_loggers[module_path]
+    
     # Create logs directory at project root level
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     log_dir = os.path.join(project_root, 'logs')
     os.makedirs(log_dir, exist_ok=True)
     
-    # Get the main component name (e.g., 'llm' from 'src.llm.completion')
+    # Get the main component name (e.g., 'core' from 'src.core.generation.llm_generator')
     components = module_path.split('.')
-    main_component = components[1] if len(components) > 1 else components[0]
+    if len(components) >= 2 and components[0] == 'src':
+        main_component = components[1]  # e.g., 'core', 'infrastructure', 'ui', 'utils'
+    elif len(components) >= 1:
+        main_component = components[0]  # fallback to first component
+    else:
+        main_component = 'unknown'
     
     # Configure module-specific logging with full path as logger name
     logger = logging.getLogger(module_path)
@@ -64,6 +77,8 @@ def get_module_logger(module_path):
         logger.setLevel(level)
         logger.propagate = False
     
+    # Cache the configured logger
+    _configured_loggers[module_path] = logger
     return logger
 
 def configure_logger():
@@ -98,12 +113,23 @@ def configure_logger():
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
     
-    # Remove any existing handlers from root logger
+    # Remove any existing handlers from root logger to prevent duplicates
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
     # Add handler to root logger
     root_logger.addHandler(file_handler)
+
+def reset_loggers():
+    """Reset all configured loggers. Useful for testing or reconfiguration."""
+    global _configured_loggers
+    _configured_loggers.clear()
+    
+    # Clear all existing loggers
+    logging.getLogger().handlers.clear()
+    
+    # Reconfigure root logger
+    configure_logger()
 
 # Configure root logging when module is imported
 configure_logger()

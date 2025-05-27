@@ -513,13 +513,15 @@ def main():
         parser.print_help()
         return 1
     
-    # Configure logging based on verbosity
+    # Configure logging based on verbosity using environment variables
     if hasattr(args, 'verbose') and args.verbose:
-        import logging
-        logging.getLogger('src').setLevel(logging.DEBUG)
+        import os
+        os.environ['MODULE_LOG_LEVEL'] = 'DEBUG'
+        os.environ['LOG_LEVEL'] = 'DEBUG'
     elif hasattr(args, 'quiet') and args.quiet:
-        import logging
-        logging.getLogger('src').setLevel(logging.ERROR)
+        import os
+        os.environ['MODULE_LOG_LEVEL'] = 'ERROR'
+        os.environ['LOG_LEVEL'] = 'ERROR'
     
     # Dispatch to appropriate handler
     if args.command == 'search':

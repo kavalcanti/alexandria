@@ -6,8 +6,7 @@ import os
 from dotenv import load_dotenv
 from prompt_toolkit.application import Application
 from prompt_toolkit.layout.layout import Layout
-from src.core.services.conversation_service import create_conversation_service, create_rag_conversation_service
-from src.core.managers.rag_manager import RAGConfig
+from src.core.services.conversation_service import create_conversation_service
 from src.ui.layout import create_layout_components
 from src.ui.keybindings import create_keybindings
 from src.ui.state_manager import StateManager
@@ -38,22 +37,15 @@ def create_application(conversation_id=None, enable_rag=True, rag_config=None):
         style
     ) = create_layout_components()
 
-    # Create conversation manager with RAG support if enabled
-    if enable_rag:
-        conversation_service = create_rag_conversation_service(
-            conversation_id=conversation_id,
-            rag_config=rag_config
-        )
-    else:
-        conversation_service = create_conversation_service(
-            conversation_id=conversation_id
-        )
+
+    conversation_service = create_conversation_service(
+        conversation_id=conversation_id
+    )
 
     state_manager = StateManager(
         chat_formatted_text,
         thinking_formatted_text,
         conversation_service,
-        enable_rag=enable_rag,
         rag_config=rag_config
     )
 

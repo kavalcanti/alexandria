@@ -4,8 +4,9 @@ from typing import Optional, List
 from sqlalchemy import update, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from src.infrastructure.db_connector import DatabaseStorage
+from src.logger import get_module_logger
 
-logger = logging.getLogger(__name__)
+logger = get_module_logger(__name__)
 
 class ConversationsController:
     """Controller for managing conversation records in the database.

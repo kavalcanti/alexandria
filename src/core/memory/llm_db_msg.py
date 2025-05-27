@@ -130,7 +130,7 @@ class MessagesController:
             logger.error(f"Failed to fetch context window messages: {str(e)}")
             raise
 
-    def get_thinking_messages(self, conversation_id: int) -> List[str]:
+    def get_reasoning_messages(self, conversation_id: int) -> List[str]:
         """Fetch the thinking messages for the conversation.
 
         Args:

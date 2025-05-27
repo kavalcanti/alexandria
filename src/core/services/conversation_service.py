@@ -14,8 +14,8 @@ The service coordinates:
 
 from typing import List, Dict, Any, Optional, Tuple
 from src.logger import get_module_logger
-from src.core.managers.context_manager import ContextManager
-from src.core.managers.llm_manager import LLMManager
+from src.core.context.context_window import ContextWindow
+from src.core.generation.llm_generator import LLMGenerator
 from src.core.memory.llm_db_msg import MessagesController
 
 logger = get_module_logger(__name__) 
@@ -24,10 +24,9 @@ class ConversationService:
     def __init__(
         self,
         conversation_id: int,
-        context_manager: ContextManager,
-        llm_manager: LLMManager,
+        context_window: ContextWindow,
+        llm_generator: LLMGenerator,
         messages_controller: MessagesController,
-        rag_manager: Optional['RAGManager'] = None
     ) -> None:
         """
         Initialize the conversation service with injected dependencies.
@@ -38,8 +37,8 @@ class ConversationService:
 
         Args:
             conversation_id: ID of the conversation this service manages
-            context_manager: Manager for handling conversation context and history
-            llm_manager: Manager for LLM interactions and response generation
+            context_window: Manager for handling conversation context and history
+            llm_generator: Manager for LLM interactions and response generation
             messages_controller: Controller for message database operations
             rag_manager: Optional manager for retrieval-augmented generation
 
@@ -47,16 +46,13 @@ class ConversationService:
             None
         """
         self.conversation_id = conversation_id
-        self.context_manager = context_manager
-        self.llm_manager = llm_manager
+        self.context_window = context_window
+        self.llm_generator = llm_generator
         self.messages_controller = messages_controller
-        self.rag_manager = rag_manager
 
         logger.info(f"Conversation Service initialized with conversation ID: {self.conversation_id}")
-        if self.rag_manager:
-            logger.info("RAG capabilities enabled")
 
-    def manage_context_window(self, role: str, message: str) -> None:
+    def add_message(self, role: str, message: str) -> None:
         """
         Update the context window with a new message.
 
@@ -69,77 +65,45 @@ class ConversationService:
         Returns:
             None
         """
-        self.context_manager.manage_context_window(role, message)
+        self.context_window.add_message(role, message)
 
-    def generate_chat_response(self, thinking_model: bool = True, max_new_tokens: int = 8096) -> str:
+    def generate_chat_response(self, rag_enabled: bool = False, thinking_model: bool = True, max_new_tokens: int = 8096) -> Tuple[str, Optional[str], Optional[Any]]:
         """
         Generate a response using the LLM based on current context.
 
-        This method uses the standard LLM generation without retrieval augmentation.
-        For RAG-enabled responses, use generate_rag_response instead.
-
         Args:
+            rag_enabled: Whether to enable retrieval-augmented generation.
+                Defaults to False.
             thinking_model: Whether to use the thinking model for response generation.
                 Defaults to True.
             max_new_tokens: Maximum number of tokens to generate in the response.
                 Defaults to 8096.
 
         Returns:
-            str: The generated response from the LLM
+            Tuple[str, Optional[str], Optional[Any]]: The generated response, thinking, and retrieval result from the LLM
         """
-        return self.llm_manager.generate_chat_response(thinking_model, max_new_tokens)
-
-    def generate_rag_response(
-        self, 
-        user_query: str, 
-        thinking_model: bool = True, 
-        max_new_tokens: int = 8096
-    ) -> Tuple[str, str, Optional[Dict[str, Any]]]:
-        """
-        Generate a response using retrieval-augmented generation.
-
-        This method performs document retrieval and uses the retrieved context
-        to generate more informed responses. Only available when RAG manager is configured.
-
-        Args:
-            user_query: The user's question or prompt
-            thinking_model: Whether to use the thinking model for response generation
-            max_new_tokens: Maximum number of tokens to generate in the response
-
-        Returns:
-            Tuple[str, str, Optional[Dict]]: (response, thinking, retrieval_info)
-            - response: The generated response
-            - thinking: The reasoning process (if thinking_model=True)
-            - retrieval_info: Information about retrieved documents
-        """
-        if not self.rag_manager:
-            raise RuntimeError("RAG manager not configured. Use generate_chat_response for standard generation.")
-        
-        response, thinking, retrieval_result = self.rag_manager.generate_rag_response(
-            user_query=user_query,
-            thinking_model=thinking_model,
-            max_new_tokens=max_new_tokens
-        )
-        
-        # Format retrieval info for return
-        retrieval_info = None
-        if retrieval_result:
-            retrieval_info = {
-                "query": retrieval_result.query,
-                "total_matches": retrieval_result.total_matches,
-                "search_time_ms": retrieval_result.search_time_ms,
-                "matches": [
-                    {
-                        "filepath": match.filepath,
-                        "content_preview": match.content[:200] + "..." if len(match.content) > 200 else match.content,
-                        "similarity_score": match.similarity_score,
-                        "content_type": match.content_type
-                    }
-                    for match in retrieval_result.matches
-                ]
-            }
-        
-        return response, thinking, retrieval_info
+        if rag_enabled:
+            # For RAG, we need to get the last user message and process it
+            user_message = ""
+            for message in reversed(self.context_window.context_window):
+                if message['role'] == 'user':
+                    user_message = message['content']
+                    break
+            
+            # Use LLMGenerator for RAG processing (it handles context management internally)
+            return self.llm_generator.generate_response(user_message, thinking_model, max_new_tokens, rag_enabled=True)
+        else:
+            # For standard generation, use LLM controller directly with current context
+            response, thinking = self.llm_generator.llm_controller.generate_response_from_context(
+                self.context_window.context_window, thinking_model, max_new_tokens
+            )
+            
+            # Store assistant response in context
+            self.context_window.add_message('assistant', response)
+            if thinking:
+                self.context_window.add_message('assistant-reasoning', thinking)
+                
+            return response, thinking, None
 
     def search_documents(self, query: str, **kwargs) -> Dict[str, Any]:
         """
@@ -177,16 +141,6 @@ class ConversationService:
         }
 
     @property
-    def context_window(self) -> List[Dict[str, Any]]:
-        """
-        Get the current context window contents.
-
-        Returns:
-            List[Dict[str, Any]]: A list of message dictionaries in the current context window
-        """
-        return self.context_manager.context_window
-
-    @property
     def is_rag_enabled(self) -> bool:
         """
         Check if RAG capabilities are enabled for this conversation.
@@ -215,7 +169,7 @@ def create_conversation_service(
     load_latest_system: bool = True
 ) -> ConversationService:
     """
-    Create a ConversationService instance using the factory pattern.
+    Create a ConversationService instance using dependency injection.
     
     This function provides backward compatibility with the original constructor
     while using the new dependency injection architecture under the hood.
@@ -228,38 +182,24 @@ def create_conversation_service(
     Returns:
         ConversationService: Fully configured service instance
     """
-    from src.core.services.conversation_service_factory import ConversationServiceFactory
-    factory = ConversationServiceFactory()
-    return factory.create_conversation_service(
-        context_window_len=context_window_len,
-        conversation_id=conversation_id,
-        load_latest_system=load_latest_system
+    from src.core.services.service_container import get_container
+    
+    container = get_container()
+    
+    # Create a new context window instance configured for this conversation
+    context_window = container.create_context_window(
+        conversation_id=conversation_id or 0,
+        context_window_len=context_window_len
+    )
+    
+    # Create LLM generator with the context window
+    llm_generator = container.create_llm_generator(context_window=context_window)
+    
+    # Create conversation service with injected dependencies
+    return ConversationService(
+        conversation_id=conversation_id or 0,  # Default to 0 if None
+        context_window=context_window,
+        llm_generator=llm_generator,
+        messages_controller=container.messages_controller
     )
 
-# Convenience function for creating RAG-enabled conversations
-def create_rag_conversation_service(
-    context_window_len: int = 5,
-    conversation_id: Optional[int] = None,
-    load_latest_system: bool = True,
-    rag_config: Optional['RAGConfig'] = None
-) -> ConversationService:
-    """
-    Create a RAG-enabled ConversationService instance.
-    
-    Args:
-        context_window_len: Number of messages to maintain in context window
-        conversation_id: Optional existing conversation ID
-        load_latest_system: Whether to load only the most recent system message
-        rag_config: Optional RAG configuration settings
-        
-    Returns:
-        ConversationService: RAG-enabled conversation service
-    """
-    from src.core.services.conversation_service_factory import ConversationServiceFactory
-    factory = ConversationServiceFactory()
-    return factory.create_rag_conversation_service(
-        context_window_len=context_window_len,
-        conversation_id=conversation_id,
-        load_latest_system=load_latest_system,
-        rag_config=rag_config
-    ) 

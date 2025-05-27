@@ -4,10 +4,11 @@ UI state management and context window integration.
 This module handles the state management for the Alexandria UI, including chat history,
 thinking process display, and conversation context management.
 """
-from typing import Optional, List, Dict, Tuple, TypeAlias
+from typing import Optional, List, Dict, Tuple, TypeAlias, Union
 from prompt_toolkit.layout.controls import FormattedTextControl
-from src.core.services.conversation_service import ConversationService, create_conversation_service, create_rag_conversation_service
-from src.core.managers.rag_manager import RAGConfig
+from src.core.services.conversation_service import ConversationService, create_conversation_service
+from src.core.generation.rag import RAGToolsConfig
+from src.core.retrieval.models import SearchResult
 from src.core.services.service_right_pane import RightPaneService
 from src.ui.markdown_formatter import MarkdownFormatter
 from src.logger import get_module_logger
@@ -22,10 +23,9 @@ class StateManager:
     def __init__(
         self,
         chat_control: FormattedTextControl,
-        thinking_control: FormattedTextControl,
+        reasoning_control: FormattedTextControl,
         conversation_service: ConversationService,
-        enable_rag: bool = True,
-        rag_config: Optional[RAGConfig] = None
+        rag_config: Optional[RAGToolsConfig] = None
     ) -> None:
         """
         Initialize the state manager.
@@ -41,26 +41,25 @@ class StateManager:
             None
         """
         self.chat_control = chat_control
-        self.thinking_control = thinking_control
+        self.reasoning_control = reasoning_control
         self.conversation_service = conversation_service
-        self.enable_rag = enable_rag
         self.rag_config = rag_config
         self.markdown_formatter = MarkdownFormatter()
-        self.right_pane_service = RightPaneService(self.conversation_service.messages_controller)
         # Store the latest retrieval info for saving
-        self.latest_retrieval_info: Optional[Dict] = None
+        self.latest_retrieval_info: Optional[SearchResult] = None
         # Initialize empty state
         self.chat_control.text = []
-        self.thinking_control.text = []
+        self.reasoning_control.text = []
+        self.right_pane_service = RightPaneService(
+            self.conversation_service.messages_controller, 
+            self.conversation_service.conversation_id
+        )
         
         # Load initial conversation state
         if conversation_service.conversation_id:
             self._load_right_pane_messages()
             self._load_initial_conversation()
         
-        # Log RAG status
-        if self.enable_rag and hasattr(self.conversation_service, 'is_rag_enabled'):
-            logger.info(f"RAG enabled in UI: {self.conversation_service.is_rag_enabled}")
         else:
             logger.info("RAG not enabled in UI")
 
@@ -110,7 +109,7 @@ class StateManager:
         chat_text: FormattedText = []
         
         # Get messages from context window in reverse order
-        for message in reversed(self.conversation_service.context_window):
+        for message in reversed(self.conversation_service.context_window.context_window):
             role = message.get('role')
             content = message.get('content', '')
             
@@ -130,10 +129,10 @@ class StateManager:
             None
         """
         thinking_text: FormattedText = []
-        for message in self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id):
+        for message in self.right_pane_service.get_right_pane_content():
             formatted_msg = self._format_message('assistant-reasoning', message)
             thinking_text.extend(formatted_msg)
-        self.thinking_control.text = thinking_text
+        self.reasoning_control.text = thinking_text
         logger.info(f"Right pane messages: {thinking_text}")
         
     def append_user_message(self, message: str) -> None:
@@ -153,9 +152,9 @@ class StateManager:
         self.chat_control.text = formatted_message + self.chat_control.text
         
         # Add to context window for standard generation
-        self.conversation_service.manage_context_window("user", message)
+        self.conversation_service.add_message("user", message)
         
-    def append_assistant_message(self, message: str, thinking: Optional[str] = None, retrieval_info: Optional[Dict] = None) -> None:
+    def append_assistant_message(self, message: str, thinking: Optional[str] = None, retrieval_info: Optional[SearchResult] = None) -> None:
         """
         Append an assistant message to UI and context window.
         
@@ -177,47 +176,47 @@ class StateManager:
         # Handle thinking process
         if thinking:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
-            self.thinking_control.text = formatted_thinking + self.thinking_control.text
+            self.reasoning_control.text = formatted_thinking + self.reasoning_control.text
             # Add thinking to context window for standard generation
-            self.conversation_service.manage_context_window("assistant-reasoning", thinking)
+            self.conversation_service.add_message("assistant-reasoning", thinking)
             logger.debug(f"Appending assistant reasoning message: {thinking}")
 
         # Handle retrieval information in the right pane
-        if retrieval_info and retrieval_info.get('total_matches', 0) > 0:
+        if retrieval_info and retrieval_info.total_matches > 0:
             retrieval_text = self._format_retrieval_info(retrieval_info)
             formatted_retrieval = self._format_message('retrieval-info', retrieval_text)
             
             # Add retrieval info to thinking pane
             if thinking:
                 # Insert retrieval info after thinking
-                self.thinking_control.text = formatted_retrieval + self.thinking_control.text
+                self.reasoning_control.text = formatted_retrieval + self.reasoning_control.text
             else:
                 # Add retrieval info alone if no thinking
-                self.thinking_control.text = formatted_retrieval + self.thinking_control.text
+                self.reasoning_control.text = formatted_retrieval + self.reasoning_control.text
             
-            logger.info(f"Added retrieval info to thinking pane: {retrieval_info['total_matches']} documents")
+            logger.info(f"Added retrieval info to thinking pane: {retrieval_info.total_matches} documents")
 
         # Format and display main assistant message (without retrieval info)
         formatted_message = self._format_message('assistant', message)
         self.chat_control.text = formatted_message + self.chat_control.text
         
         # Add assistant message to context window for standard generation
-        self.conversation_service.manage_context_window("assistant", message)
+        self.conversation_service.add_message("assistant", message)
         logger.debug(f"Appending assistant message: {message}")
 
-    def _format_retrieval_info(self, retrieval_info: Dict) -> str:
+    def _format_retrieval_info(self, retrieval_info: SearchResult) -> str:
         """
         Format retrieval information for display in the thinking pane.
         
         Args:
-            retrieval_info: Dictionary containing retrieval results
+            retrieval_info: SearchResult object containing retrieval results
             
         Returns:
             str: Formatted retrieval information text
         """
-        total_matches = retrieval_info.get('total_matches', 0)
-        matches = retrieval_info.get('matches', [])
-        search_time = retrieval_info.get('search_time_ms', 0)
+        total_matches = retrieval_info.total_matches
+        matches = retrieval_info.matches
+        search_time = retrieval_info.search_time_ms
         
         if total_matches == 0:
             return "No relevant documents found in knowledge base."
@@ -232,9 +231,7 @@ class StateManager:
         # List each document with similarity score
         lines.append("Documents used:")
         for i, match in enumerate(matches, 1):
-            filepath = match.get('filepath', 'Unknown')
-            similarity = match.get('similarity_score', 0.0)
-            lines.append(f"  {i}. {filepath} (relevance: {similarity:.3f})")
+            lines.append(f"  {i}. {match.filepath} (relevance: {match.similarity_score:.3f})")
         
         return "\n".join(lines)
 
@@ -246,17 +243,16 @@ class StateManager:
             None
         """
         self.chat_control.text = []
-        self.thinking_control.text = []
+        self.reasoning_control.text = []
         self.latest_retrieval_info = None
         
-        # Create new conversation service with same RAG settings
-        if self.enable_rag:
-            self.conversation_service = create_rag_conversation_service(rag_config=self.rag_config)
-        else:
-            self.conversation_service = create_conversation_service()
+        self.conversation_service = create_conversation_service()
         
         # Update right pane service
-        self.right_pane_service = RightPaneService(self.conversation_service.messages_controller)
+        self.right_pane_service = RightPaneService(
+            self.conversation_service.messages_controller, 
+            self.conversation_service.conversation_id
+        )
 
     def save_current_output(self) -> Optional[str]:
         """
@@ -267,7 +263,7 @@ class StateManager:
         """
         # Get the most recent assistant message by iterating in reverse order
         latest_assistant_message = None
-        for message in reversed(self.conversation_service.context_window):
+        for message in reversed(self.conversation_service.context_window.context_window):
             if message.get('role') == 'assistant':
                 latest_assistant_message = message
                 break
@@ -276,12 +272,12 @@ class StateManager:
             content = latest_assistant_message.get('content', '')
             
             # Get the most recent thinking message
-            thinking_messages = self.right_pane_service.get_thinking_messages(self.conversation_service.conversation_id)
+            thinking_messages = self.right_pane_service.get_right_pane_content()
             thinking = thinking_messages[0] if thinking_messages else None
             
             # Use stored retrieval info if available
             retrieval_info_text = None
-            if self.latest_retrieval_info and self.latest_retrieval_info.get('total_matches', 0) > 0:
+            if self.latest_retrieval_info and self.latest_retrieval_info.total_matches > 0:
                 retrieval_info_text = self._format_retrieval_info(self.latest_retrieval_info)
             
             # Save to file
@@ -308,5 +304,5 @@ class StateManager:
         Returns:
             FormattedText: Current formatted thinking text
         """
-        return self.thinking_control.text
+        return self.reasoning_control.text
 

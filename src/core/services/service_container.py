@@ -10,9 +10,12 @@ from src.infrastructure.llm_controller import LLMController
 from src.infrastructure.db_connector import DatabaseStorage
 from src.core.memory.llm_db_cnvs import ConversationsController
 from src.core.memory.llm_db_msg import MessagesController
-from src.core.managers.prompt_manager import LLMPromptManager
+from src.core.generation.llm_generator import LLMGenerator
+from src.core.context.context_window import ContextWindow
+from src.core.context.prompt_manager import LLMPromptManager
 from src.infrastructure.embedder import Embedder
 from src.core.retrieval.retrieval_interface import RetrievalInterface
+from src.core.generation.rag import RAGToolsConfig
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__)
@@ -33,11 +36,13 @@ class ServiceContainer:
         self._embedder: Optional[Embedder] = None
         self._conversations_controller: Optional[ConversationsController] = None
         self._messages_controller: Optional[MessagesController] = None
-        self._llm_controller: Optional[LLMController] = None
-        self._prompt_controller: Optional[LLMPromptManager] = None
         self._retrieval_interface: Optional[RetrievalInterface] = None
-        self._rag_manager: Optional['RAGManager'] = None
-        
+        self._llm_generator: Optional[LLMGenerator] = None
+        self._context_window: Optional[ContextWindow] = None
+        self._llm_controller: Optional[LLMController] = None
+        self._prompt_manager: Optional[LLMPromptManager] = None
+        self._rag_config: Optional[RAGToolsConfig] = None
+
     @property
     def db_storage(self) -> DatabaseStorage:
         """Get or create the database storage service."""
@@ -79,12 +84,29 @@ class ServiceContainer:
         return self._llm_controller
     
     @property
-    def prompt_controller(self) -> LLMPromptManager:
-        """Get or create the prompt controller."""
-        if self._prompt_controller is None:
-            self._prompt_controller = LLMPromptManager()
+    def prompt_manager(self) -> LLMPromptManager:
+        """Get or create the prompt manager."""
+        if self._prompt_manager is None:
+            self._prompt_manager = LLMPromptManager()
             logger.debug("Created LLMPromptManager instance")
-        return self._prompt_controller
+        return self._prompt_manager
+    
+    def create_context_window(self, conversation_id: int = 0, context_window_len: int = 5) -> ContextWindow:
+        """Create a new context window instance with specific parameters."""
+        return ContextWindow(
+            conversation_id=conversation_id,
+            prompt_manager=self.prompt_manager,
+            context_window_len=context_window_len
+        )
+
+    def create_llm_generator(self, context_window: Optional[ContextWindow] = None) -> LLMGenerator:
+        """Create a new LLM generator instance with injected dependencies."""
+        return LLMGenerator(
+            retrieval_interface=self.retrieval_interface,
+            context_window=context_window,
+            llm_controller=self.llm_controller,
+            rag_config=self.rag_config
+        )
 
     @property
     def retrieval_interface(self) -> RetrievalInterface:
@@ -94,18 +116,13 @@ class ServiceContainer:
             logger.debug("Created RetrievalInterface instance")
         return self._retrieval_interface
 
-    @property 
-    def rag_manager(self) -> 'RAGManager':
-        """Get or create the RAG manager."""
-        if self._rag_manager is None:
-            # Import here to avoid circular dependency
-            from src.core.managers.rag_manager import RAGManager
-            self._rag_manager = RAGManager(
-                retrieval_interface=self.retrieval_interface
-            )
-            logger.debug("Created RAGManager instance")
-        return self._rag_manager
-
+    @property
+    def rag_config(self) -> RAGToolsConfig:
+        """Get or create the RAG configuration."""
+        if self._rag_config is None:
+            self._rag_config = RAGToolsConfig()
+            logger.debug("Created RAGToolsConfig instance with defaults")
+        return self._rag_config
 
 # Global container instance - using singleton pattern for shared dependencies
 _container: Optional[ServiceContainer] = None
