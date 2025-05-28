@@ -38,6 +38,7 @@ dependencies = [
     "nvidia-nvjitlink-cu12==12.6.85",
     "nvidia-nvtx-cu12==12.6.77",
     "packaging==25.0",
+    "pdfplumber>=0.11.6",
     "pgvector==0.4.1",
     "pillow==11.2.1",
     "prompt-toolkit==3.0.51",

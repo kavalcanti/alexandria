@@ -5,7 +5,7 @@ This container follows the Dependency Injection pattern to manage the lifecycle
 and relationships between various components in the conversation system.
 """
 
-from typing import Optional
+from typing import Optional, List, Dict
 from src.infrastructure.llm_controller import LLMController
 from src.infrastructure.db_connector import DatabaseStorage
 from src.core.memory.llm_db_cnvs import ConversationsController
@@ -91,12 +91,13 @@ class ServiceContainer:
             logger.debug("Created LLMPromptManager instance")
         return self._prompt_manager
     
-    def create_context_window(self, conversation_id: int = 0, context_window_len: int = 5) -> ContextWindow:
+    def create_context_window(self, conversation_id: Optional[int] = None, context_window_len: int = 5, initial_context: List[Dict[str, str]] = None) -> ContextWindow:
         """Create a new context window instance with specific parameters."""
         return ContextWindow(
-            conversation_id=conversation_id,
+            conversation_id=conversation_id or 0,  # Use 0 as placeholder, actual ID set by service
             prompt_manager=self.prompt_manager,
-            context_window_len=context_window_len
+            context_window_len=context_window_len,
+            initial_context=initial_context
         )
 
     def create_llm_generator(self, context_window: Optional[ContextWindow] = None) -> LLMGenerator:
@@ -105,7 +106,6 @@ class ServiceContainer:
             retrieval_interface=self.retrieval_interface,
             context_window=context_window,
             llm_controller=self.llm_controller,
-            messages_controller=self.messages_controller,
             rag_config=self.rag_config
         )
 

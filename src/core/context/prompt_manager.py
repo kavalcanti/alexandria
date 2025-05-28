@@ -36,7 +36,7 @@ class LLMPromptManager:
         """
         return self._rag_system_prompt if use_rag else self._default_system_prompt
     
-    def instert_retrieval_in_usr_msg(self, user_message: str, retrieval_context: Optional[str] = None) -> str:
+    def insert_retrieval_in_usr_msg(self, user_message: str, retrieval_context: Optional[str] = None) -> str:
         """
         Inject the user prompt with optional retrieval context.
 

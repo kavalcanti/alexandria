@@ -17,16 +17,18 @@ from src.logger import get_module_logger
 from src.core.context.context_window import ContextWindow
 from src.core.generation.llm_generator import LLMGenerator
 from src.core.memory.llm_db_msg import MessagesController
+from src.core.memory.llm_db_cnvs import ConversationsController
 
 logger = get_module_logger(__name__) 
 
 class ConversationService:
     def __init__(
         self,
-        conversation_id: int,
+        conversation_id: Optional[int],
         context_window: ContextWindow,
         llm_generator: LLMGenerator,
         messages_controller: MessagesController,
+        conversations_controller: ConversationsController
     ) -> None:
         """
         Initialize the conversation service with injected dependencies.
@@ -36,27 +38,41 @@ class ConversationService:
         This makes the service more testable and follows the Single Responsibility Principle.
 
         Args:
-            conversation_id: ID of the conversation this service manages
+            conversation_id: ID of the conversation this service manages (None for new conversation)
             context_window: Manager for handling conversation context and history
             llm_generator: Manager for LLM interactions and response generation
             messages_controller: Controller for message database operations
-            rag_manager: Optional manager for retrieval-augmented generation
+            conversations_controller: Controller for conversation database operations
 
         Returns:
             None
         """
-        self.conversation_id = conversation_id
-        self.context_window = context_window
-        self.llm_generator = llm_generator
+        self.conversations_controller = conversations_controller
         self.messages_controller = messages_controller
+        self.llm_generator = llm_generator
+        self.context_window = context_window
+        
+        if conversation_id:
+            self.conversation_id = conversation_id
+            # Load existing conversation context
+            existing_messages = self.messages_controller.get_context_window_messages(conversation_id, context_window.context_window_len)
+            if existing_messages:
+                # Convert to context format
+                context_messages = [{'role': msg['role'], 'content': msg['content']} for msg in existing_messages]
+                self.context_window.context_window = context_messages
+        else:
+            # Create new conversation
+            self.conversation_id = self.conversations_controller.get_next_conversation_id()
+            self.conversations_controller.insert_single_conversation(self.conversation_id, 0, "", None)
+            # Store the system prompt in database
+            system_content = self.context_window.context_window[0]['content']
+            self.messages_controller.insert_single_message(self.conversation_id, 'system', system_content, 0)
 
         logger.info(f"Conversation Service initialized with conversation ID: {self.conversation_id}")
 
     def add_message(self, role: str, message: str) -> None:
         """
-        Update the context window with a new message.
-
-        Delegates context window management to the context manager component.
+        Add a message to both context and database.
 
         Args:
             role: The role of the message sender (e.g., 'user', 'assistant', 'system')
@@ -65,7 +81,11 @@ class ConversationService:
         Returns:
             None
         """
+        # Add to context (in-memory)
         self.context_window.add_message(role, message)
+        # Store in database
+        self.messages_controller.insert_single_message(self.conversation_id, role, message, 0)
+        self.conversations_controller.update_message_count(self.conversation_id, 1)
 
     def generate_chat_response(self, rag_enabled: bool = False, thinking_model: bool = True, max_new_tokens: int = 8096) -> Tuple[str, Optional[str], Optional[Any]]:
         """
@@ -82,28 +102,29 @@ class ConversationService:
         Returns:
             Tuple[str, Optional[str], Optional[Any]]: The generated response, thinking, and retrieval result from the LLM
         """
-        if rag_enabled:
-            # For RAG, we need to get the last user message and process it
-            user_message = ""
-            for message in reversed(self.context_window.context_window):
-                if message['role'] == 'user':
-                    user_message = message['content']
-                    break
-            
-            # Use LLMGenerator for RAG processing (it handles context management internally)
-            return self.llm_generator.generate_response(user_message, thinking_model, max_new_tokens, rag_enabled=True)
-        else:
-            # For standard generation, use LLM controller directly with current context
-            response, thinking = self.llm_generator.llm_controller.generate_response_from_context(
-                self.context_window.context_window, thinking_model, max_new_tokens
-            )
-            
-            # Store assistant response in context
-            self.context_window.add_message('assistant', response)
-            if thinking:
-                self.context_window.add_message('assistant-reasoning', thinking)
-                
-            return response, thinking, None
+        # Get the last user message for RAG processing
+        user_message = ""
+        for message in reversed(self.context_window.context_window):
+            if message['role'] == 'user':
+                user_message = message['content']
+                break
+        
+        # Generate response using LLM generator (it doesn't modify context)
+        response, thinking, retrieval_result = self.llm_generator.generate_response(
+            user_message, thinking_model, max_new_tokens, rag_enabled=rag_enabled
+        )
+        
+        # Store the generated messages in both context and database
+        if thinking:
+            self.context_window.add_message('assistant-reasoning', thinking)
+            self.messages_controller.insert_single_message(self.conversation_id, 'assistant-reasoning', thinking, 0)
+            self.conversations_controller.update_message_count(self.conversation_id, 1)
+        
+        self.context_window.add_message('assistant', response)
+        self.messages_controller.insert_single_message(self.conversation_id, 'assistant', response, 0)
+        self.conversations_controller.update_message_count(self.conversation_id, 1)
+
+        return response, thinking, retrieval_result
 
     def search_documents(self, query: str, **kwargs) -> Dict[str, Any]:
         """
@@ -118,10 +139,10 @@ class ConversationService:
         Returns:
             Dict containing search results
         """
-        if not self.rag_manager:
-            raise RuntimeError("RAG manager not configured. Document search not available.")
+        if not self.llm_generator.retrieval_interface:
+            raise RuntimeError("Retrieval interface not configured. Document search not available.")
         
-        result = self.rag_manager.search_documents(query, **kwargs)
+        result = self.llm_generator.retrieval_interface.search_documents(query, **kwargs)
         
         return {
             "query": result.query,
@@ -148,7 +169,7 @@ class ConversationService:
         Returns:
             bool: True if RAG is enabled, False otherwise
         """
-        return self.rag_manager is not None
+        return self.llm_generator.retrieval_interface is not None
 
     def get_rag_stats(self) -> Optional[Dict[str, Any]]:
         """
@@ -157,10 +178,11 @@ class ConversationService:
         Returns:
             Dict with RAG statistics or None if RAG is not enabled
         """
-        if not self.rag_manager:
+        if not self.llm_generator.retrieval_interface:
             return None
         
-        return self.rag_manager.get_retrieval_stats()
+        # Return basic stats - extend as needed
+        return {"retrieval_enabled": True}
 
 # Convenience function for backward compatibility and easy service creation
 def create_conversation_service(
@@ -188,7 +210,7 @@ def create_conversation_service(
     
     # Create a new context window instance configured for this conversation
     context_window = container.create_context_window(
-        conversation_id=conversation_id or 0,
+        conversation_id=conversation_id,
         context_window_len=context_window_len
     )
     
@@ -197,9 +219,10 @@ def create_conversation_service(
     
     # Create conversation service with injected dependencies
     return ConversationService(
-        conversation_id=conversation_id or 0,  # Default to 0 if None
+        conversation_id=conversation_id,
         context_window=context_window,
         llm_generator=llm_generator,
-        messages_controller=container.messages_controller
+        messages_controller=container.messages_controller,
+        conversations_controller=container.conversations_controller
     )
 
