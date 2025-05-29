@@ -152,7 +152,7 @@ class StateManager:
         self.chat_control.text = formatted_message + self.chat_control.text
         
         # Add to context window for standard generation
-        self.conversation_service.add_message("user", message)
+        self.conversation_service.add_conversation_message("user", message)
         
     def append_assistant_message(self, message: str, thinking: Optional[str] = None, retrieval_info: Optional[SearchResult] = None) -> None:
         """
@@ -178,7 +178,7 @@ class StateManager:
             formatted_thinking = self._format_message('assistant-reasoning', thinking)
             self.reasoning_control.text = formatted_thinking + self.reasoning_control.text
             # Add thinking to context window for standard generation
-            self.conversation_service.add_message("assistant-reasoning", thinking)
+            self.conversation_service.add_conversation_message("assistant-reasoning", thinking)
             logger.debug(f"Appending assistant reasoning message: {thinking}")
 
         # Handle retrieval information in the right pane
@@ -201,7 +201,7 @@ class StateManager:
         self.chat_control.text = formatted_message + self.chat_control.text
         
         # Add assistant message to context window for standard generation
-        self.conversation_service.add_message("assistant", message)
+        self.conversation_service.add_conversation_message("assistant", message)
         logger.debug(f"Appending assistant message: {message}")
 
     def _format_retrieval_info(self, retrieval_info: SearchResult) -> str:

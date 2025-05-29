@@ -5,6 +5,7 @@ import asyncio
 from src.core.retrieval.retrieval_interface import RetrievalInterface
 from src.core.retrieval.models import DocumentMatch, SearchResult
 from src.infrastructure.llm_controller import LLMController
+from src.infrastructure.embedder import Embedder
 from src.core.context.context_window import ContextWindow
 from src.core.generation.rag import RAGTools, RAGToolsConfig
 from src.logger import get_module_logger
@@ -17,7 +18,8 @@ class LLMGenerator:
         retrieval_interface: Optional[RetrievalInterface] = None,
         context_window: Optional[ContextWindow] = None,
         llm_controller: Optional[LLMController] = None,
-        rag_config: Optional[RAGToolsConfig] = None
+        rag_config: Optional[RAGToolsConfig] = None,
+        embedder: Optional[Embedder] = None
     ):
         """
         Initialize the LLM generator.
@@ -32,7 +34,8 @@ class LLMGenerator:
         self.retrieval_interface = retrieval_interface
         self.context_window = context_window
         self.llm_controller = llm_controller
-        self.rag_config = rag_config            
+        self.embedder = embedder
+        self.rag_config = rag_config
         self.rag_tools = RAGTools(context_window, retrieval_interface, self.rag_config)
 
         logger.info("LLMGenerator initialized with retrieval integration")
@@ -85,3 +88,12 @@ class LLMGenerator:
 
         logger.info(f"RAG response generated with retrieval: {retrieval_result is not None}")
         return response, thinking, retrieval_result
+    
+    def generate_conversation_title(self) -> str:
+        """
+        Generate a conversation title from the context window.
+        """
+        context_window = self.context_window.get_title_generation_context()
+        title, _ = self.llm_controller.generate_response_from_context(context_window, False, 300)
+        title_embedding = self.embedder.embed(title)
+        return title, title_embedding

@@ -70,7 +70,7 @@ class ConversationService:
 
         logger.info(f"Conversation Service initialized with conversation ID: {self.conversation_id}")
 
-    def add_message(self, role: str, message: str) -> None:
+    def add_conversation_message(self, role: str, message: str) -> None:
         """
         Add a message to both context and database.
 
@@ -82,9 +82,10 @@ class ConversationService:
             None
         """
         # Add to context (in-memory)
-        self.context_window.add_message(role, message)
+        if role != 'assistant-reasoning':
+            self.context_window.add_message(role, message)
         # Store in database
-        self.messages_controller.insert_single_message(self.conversation_id, role, message, 0)
+        self.messages_controller.insert_single_message(self.conversation_id, role, message, 0) # TODO: add token count
         self.conversations_controller.update_message_count(self.conversation_id, 1)
 
     def generate_chat_response(self, rag_enabled: bool = False, thinking_model: bool = True, max_new_tokens: int = 8096) -> Tuple[str, Optional[str], Optional[Any]]:
@@ -102,7 +103,12 @@ class ConversationService:
         Returns:
             Tuple[str, Optional[str], Optional[Any]]: The generated response, thinking, and retrieval result from the LLM
         """
-        # Get the last user message for RAG processing
+
+        if len(self.context_window.context_window) == 4:
+            title, title_embedding = self.llm_generator.generate_conversation_title()
+            self.conversations_controller.update_conversation_title(self.conversation_id, title, title_embedding)
+
+        # Get the last user message
         user_message = ""
         for message in reversed(self.context_window.context_window):
             if message['role'] == 'user':
@@ -113,16 +119,6 @@ class ConversationService:
         response, thinking, retrieval_result = self.llm_generator.generate_response(
             user_message, thinking_model, max_new_tokens, rag_enabled=rag_enabled
         )
-        
-        # Store the generated messages in both context and database
-        if thinking:
-            self.context_window.add_message('assistant-reasoning', thinking)
-            self.messages_controller.insert_single_message(self.conversation_id, 'assistant-reasoning', thinking, 0)
-            self.conversations_controller.update_message_count(self.conversation_id, 1)
-        
-        self.context_window.add_message('assistant', response)
-        self.messages_controller.insert_single_message(self.conversation_id, 'assistant', response, 0)
-        self.conversations_controller.update_message_count(self.conversation_id, 1)
 
         return response, thinking, retrieval_result
 

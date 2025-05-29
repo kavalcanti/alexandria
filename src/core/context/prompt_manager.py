@@ -71,3 +71,13 @@ class LLMPromptManager:
 2. Whether additional context might be needed
 3. How to best synthesize the context with your knowledge
 4. What limitations exist in the available information"""
+
+    def get_conversation_title_prompt(self) -> str:
+        """
+        Get the prompt for generating a conversation title.
+        """
+        return """Generate a concise title for the conversation based on the context window.
+        The title should be a single sentence that captures the main topic or purpose of the conversation.
+        The title should be no more than 10 words long.
+        The title should be in the same language as the conversation.
+        The title should be in the same language as the conversation."""

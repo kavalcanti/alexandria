@@ -37,4 +37,8 @@ class ContextWindow:
             tmp_context_window = self.context_window[-self.context_window_len:]
             self.context_window = [self.system_prompt] + tmp_context_window
             
+    def get_title_generation_context(self) -> List[Dict[str, str]]:
+        system_prompt_content = self.prompt_manager.get_conversation_title_prompt()
+        system_prompt = {'role': 'system', 'content': system_prompt_content}
+        return [system_prompt] + self.context_window[-2:]
 
