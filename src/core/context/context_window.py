@@ -2,6 +2,11 @@ from typing import List, Dict, Any
 from src.core.context.prompt_manager import LLMPromptManager
 
 class ContextWindow:
+    """Manages a conversation context window for LLM interactions.
+    This class maintains SSoT for the conversation context passed to the LLM.
+    It also handles the RAG retrieval context and the system prompt.
+    """
+    
     def __init__(self, conversation_id: int, prompt_manager: LLMPromptManager, context_window_len: int = 5, initial_context: List[Dict[str, str]] = None):
         self.prompt_manager = prompt_manager
         self.conversation_id = conversation_id

@@ -15,7 +15,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from src.logger import get_module_logger
-from src.core.services.conversation_service import create_rag_conversation_service
+from src.core.services.conversation_service import create_conversation_service
 from src.core.generation.rag import RAGToolsConfig
 
 load_dotenv()
@@ -110,31 +110,32 @@ def handle_ask(args) -> int:
     """Handle the ask command."""
     try:
         config = create_rag_config(args)
-        service = create_rag_conversation_service(rag_config=config)
+        service = create_conversation_service()
         
         if not args.quiet:
             print(f"Asking: {args.question}")
-            if config.enable_retrieval:
+            if config.enable_retrieval and service.is_rag_enabled:
                 print("Using retrieval-augmented generation...")
             else:
                 print("Using standard generation (RAG disabled)...")
             print()
         
-        if config.enable_retrieval and service.is_rag_enabled:
-            response, thinking, retrieval_info = service.generate_rag_response(args.question)
-        else:
-            service.add_message('user', args.question)
-            response_tuple = service.generate_chat_response()
-            response = response_tuple[0] if isinstance(response_tuple, tuple) else response_tuple
-            thinking = response_tuple[1] if isinstance(response_tuple, tuple) and len(response_tuple) > 1 else ""
-            retrieval_info = None
+        # Add the user message to the conversation
+        service.add_conversation_message('user', args.question)
+        
+        # Generate response with RAG enabled based on config
+        rag_enabled = config.enable_retrieval and service.is_rag_enabled
+        response, thinking, retrieval_result = service.generate_chat_response(rag_enabled=rag_enabled)
+        
+        # Add the response to the conversation
+        service.add_conversation_message('assistant', response)
         
         if args.format == 'json':
             result = {
                 "question": args.question,
                 "response": response,
                 "thinking": thinking if args.show_thinking else None,
-                "retrieval_info": retrieval_info if args.show_retrieval else None
+                "retrieval_info": retrieval_result if args.show_retrieval else None
             }
             print(json.dumps(result, indent=2))
         else:
@@ -147,16 +148,18 @@ def handle_ask(args) -> int:
                 print("-" * 50)
                 print(thinking)
             
-            if args.show_retrieval and retrieval_info:
+            if args.show_retrieval and retrieval_result:
                 print("\nRetrieval Information:")
                 print("-" * 50)
-                print(f"Query: {retrieval_info['query']}")
-                print(f"Total matches: {retrieval_info['total_matches']}")
-                print(f"Search time: {retrieval_info['search_time_ms']:.2f}ms")
-                print("\nRetrieved documents:")
-                for i, match in enumerate(retrieval_info['matches'], 1):
-                    print(f"{i}. {match['filepath']} (score: {match['similarity_score']:.3f})")
-                    print(f"   {match['content_preview']}")
+                print(f"Query: {retrieval_result.get('query', 'N/A')}")
+                print(f"Total matches: {retrieval_result.get('total_matches', 0)}")
+                print(f"Search time: {retrieval_result.get('search_time_ms', 0):.2f}ms")
+                if 'matches' in retrieval_result:
+                    print("\nRetrieved documents:")
+                    for i, match in enumerate(retrieval_result['matches'], 1):
+                        print(f"{i}. {match.get('filepath', 'Unknown')} (score: {match.get('similarity_score', 0):.3f})")
+                        content_preview = match.get('content', '')[:100] + "..." if len(match.get('content', '')) > 100 else match.get('content', '')
+                        print(f"   {content_preview}")
         
         return 0
         
@@ -170,11 +173,11 @@ def handle_interactive(args) -> int:
     """Handle the interactive command."""
     try:
         config = create_rag_config(args)
-        service = create_rag_conversation_service(rag_config=config)
+        service = create_conversation_service()
         
         print("Alexandria RAG Interactive Session")
         print("=" * 40)
-        if config.enable_retrieval:
+        if config.enable_retrieval and service.is_rag_enabled:
             print("RAG enabled - responses will use document retrieval")
         else:
             print("RAG disabled - using standard generation")
@@ -193,7 +196,7 @@ def handle_interactive(args) -> int:
                     stats = service.get_rag_stats()
                     if stats:
                         print("RAG Configuration:")
-                        for key, value in stats['config'].items():
+                        for key, value in stats.items():
                             print(f"  {key}: {value}")
                     else:
                         print("RAG not enabled")
@@ -201,30 +204,24 @@ def handle_interactive(args) -> int:
                 elif not user_input:
                     continue
                 
-                print("\nAssistant: ", end="", flush=True)
+                # Add user message and generate response
+                service.add_conversation_message('user', user_input)
+                rag_enabled = config.enable_retrieval and service.is_rag_enabled
+                response, thinking, retrieval_result = service.generate_chat_response(rag_enabled=rag_enabled)
+                service.add_conversation_message('assistant', response)
                 
-                if config.enable_retrieval and service.is_rag_enabled:
-                    response, thinking, retrieval_info = service.generate_rag_response(user_input)
-                    
-                    print(response)
-                    
-                    if retrieval_info and retrieval_info['total_matches'] > 0:
-                        print(f"\n[Used {retrieval_info['total_matches']} document(s) from knowledge base]")
-                else:
-                    service.add_message('user', user_input)
-                    response_tuple = service.generate_chat_response()
-                    response = response_tuple[0] if isinstance(response_tuple, tuple) else response_tuple
-                    print(response)
+                print(f"Assistant: {response}")
                 
-                print()
+                if retrieval_result and config.enable_retrieval:
+                    print(f"\n[Retrieved {retrieval_result.get('total_matches', 0)} documents]")
                 
             except KeyboardInterrupt:
-                print("\nSession interrupted.")
+                print("\nGoodbye!")
                 break
             except EOFError:
+                print("\nGoodbye!")
                 break
         
-        print("Goodbye!")
         return 0
         
     except Exception as e:
@@ -237,28 +234,27 @@ def handle_search(args) -> int:
     """Handle the search command."""
     try:
         config = create_rag_config(args)
-        service = create_rag_conversation_service(rag_config=config)
+        service = create_conversation_service()
         
         if not service.is_rag_enabled:
-            print("Error: RAG not enabled, cannot search documents")
+            print("Error: Document search requires RAG to be enabled")
             return 1
         
-        if not args.quiet:
-            print(f"Searching for: {args.query}")
-            print()
+        print(f"Searching for: {args.query}")
         
-        result = service.search_documents(args.query, max_results=args.max_results)
+        # Use the search_documents method directly
+        result = service.search_documents(args.query, max_results=config.max_retrieval_results)
         
         if args.format == 'json':
             print(json.dumps(result, indent=2))
         else:
-            print(f"Found {result['total_matches']} matches in {result['search_time_ms']:.2f}ms:")
+            print(f"\nFound {result['total_matches']} matches in {result['search_time_ms']:.2f}ms")
             print()
             
             for i, match in enumerate(result['matches'], 1):
                 print(f"{i}. [{match['filepath']}] Score: {match['similarity_score']:.3f}")
                 content_preview = match['content'][:200] + "..." if len(match['content']) > 200 else match['content']
-                print(f"   {content_preview}")
+                print(f"   Content: {content_preview}")
                 print()
         
         return 0
@@ -272,21 +268,26 @@ def handle_search(args) -> int:
 def handle_stats(args) -> int:
     """Handle the stats command."""
     try:
-        service = create_rag_conversation_service()
+        service = create_conversation_service()
         stats = service.get_rag_stats()
         
         if args.format == 'json':
-            print(json.dumps(stats or {}, indent=2))
+            result = {
+                "rag_enabled": service.is_rag_enabled,
+                "stats": stats
+            }
+            print(json.dumps(result, indent=2))
         else:
+            print("RAG System Status:")
+            print("-" * 30)
+            print(f"RAG Enabled: {service.is_rag_enabled}")
+            
             if stats:
-                print("RAG System Statistics:")
-                print("=" * 25)
-                print(f"Retrieval enabled: {stats['config']['enable_retrieval']}")
-                print(f"Max results: {stats['config']['max_results']}")
-                print(f"Min similarity: {stats['config']['min_similarity']}")
-                print(f"Include metadata: {stats['config']['include_metadata']}")
+                print("Configuration:")
+                for key, value in stats.items():
+                    print(f"  {key}: {value}")
             else:
-                print("RAG system not available")
+                print("No additional statistics available")
         
         return 0
         

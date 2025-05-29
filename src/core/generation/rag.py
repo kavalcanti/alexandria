@@ -1,19 +1,11 @@
 from typing import List, Dict, Any, Optional
-from dataclasses import dataclass
+from src.configs import RAGToolsConfig
 from src.core.context.context_window import ContextWindow
 from src.core.retrieval.retrieval_interface import RetrievalInterface
 from src.core.retrieval.models import SearchResult
 from src.logger import get_module_logger
 
 logger = get_module_logger(__name__)
-
-@dataclass
-class RAGToolsConfig:
-    enable_retrieval: bool = True
-    max_retrieval_results: int = 5
-    min_similarity_score: float = 0.3
-    context_size: int = 1
-    include_source_metadata: bool = True
 
 class RAGTools:
     def __init__(self, context_window: ContextWindow, retrieval_interface: RetrievalInterface, config: RAGToolsConfig):
