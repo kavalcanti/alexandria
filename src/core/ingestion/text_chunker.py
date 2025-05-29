@@ -1,65 +1,13 @@
 """Text chunking utilities for document processing."""
 
 import re
-import hashlib
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
-from enum import Enum
+from typing import List, Optional
 
+from src.configs import ChunkConfig, ChunkStrategy
 from src.logger import get_module_logger
+from src.core.ingestion.models import TextChunk
 
 logger = get_module_logger(__name__)
-
-
-class ChunkStrategy(Enum):
-    """Enumeration of different chunking strategies."""
-    FIXED_SIZE = "fixed_size"
-    SENTENCE_BASED = "sentence_based"
-    PARAGRAPH_BASED = "paragraph_based"
-    SEMANTIC_BASED = "semantic_based"
-    CODE_BASED = "code_based"
-    MARKDOWN_BASED = "markdown_based"
-
-
-@dataclass
-class ChunkConfig:
-    """Configuration for text chunking."""
-    strategy: ChunkStrategy = ChunkStrategy.SENTENCE_BASED
-    max_chunk_size: int = 1000  # Maximum characters per chunk
-    min_chunk_size: int = 100   # Minimum characters per chunk
-    overlap_size: int = 100     # Characters to overlap between chunks
-    respect_boundaries: bool = True  # Respect sentence/paragraph boundaries
-    
-    # Code-specific settings
-    include_function_signatures: bool = True
-    include_class_definitions: bool = True
-    
-    # Markdown-specific settings
-    preserve_headers: bool = True
-    header_hierarchy: bool = True
-
-
-@dataclass
-class TextChunk:
-    """Represents a chunk of text with metadata."""
-    content: str
-    chunk_index: int
-    char_count: int
-    token_count: Optional[int] = None
-    content_hash: str = ""
-    metadata: Dict[str, Any] = None
-    
-    def __post_init__(self):
-        """Initialize computed fields."""
-        if not self.content_hash:
-            self.content_hash = self._calculate_hash()
-        if self.metadata is None:
-            self.metadata = {}
-    
-    def _calculate_hash(self) -> str:
-        """Calculate SHA-256 hash of chunk content."""
-        return hashlib.sha256(self.content.encode('utf-8')).hexdigest()
-
 
 class TextChunker:
     """Handles chunking of text content for RAG processing."""

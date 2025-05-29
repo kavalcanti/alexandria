@@ -1,12 +1,10 @@
 """Document processing utilities for file ingestion."""
 
-import os
 import hashlib
 import mimetypes
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Any
 from datetime import datetime
-import logging
 
 from src.logger import get_module_logger
 

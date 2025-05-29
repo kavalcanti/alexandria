@@ -6,57 +6,11 @@ import hashlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Iterator, Tuple
 from dataclasses import dataclass
-from enum import Enum
-
+from src.configs import FileChunkConfig, FileChunkStrategy
 from src.logger import get_module_logger
+from src.core.ingestion.models import FileChunk
 
 logger = get_module_logger(__name__)
-
-
-class FileChunkStrategy(Enum):
-    """Enumeration of file chunking strategies."""
-    SIZE_BASED = "size_based"
-    LINE_BASED = "line_based"
-    MARKDOWN_SECTION = "markdown_section"
-
-
-@dataclass
-class FileChunkConfig:
-    """Configuration for file chunking."""
-    max_chunk_size: int = 100 * 1024 * 1024  # 100MB default max size
-    preferred_chunk_size: int = 50 * 1024 * 1024  # 50MB preferred size
-    overlap_lines: int = 50  # Number of lines to overlap between chunks
-    strategy: FileChunkStrategy = FileChunkStrategy.SIZE_BASED
-    preserve_structure: bool = True  # Try to preserve document structure
-    temp_dir: Optional[Path] = None  # Directory for temporary files
-
-
-@dataclass
-class FileChunk:
-    """Represents a chunk of a large file."""
-    chunk_id: str
-    chunk_index: int
-    file_path: Path
-    temp_file_path: Path
-    start_byte: int
-    end_byte: int
-    size_bytes: int
-    line_start: Optional[int] = None
-    line_end: Optional[int] = None
-    metadata: Dict[str, Any] = None
-    
-    def __post_init__(self):
-        """Initialize computed fields."""
-        if self.metadata is None:
-            self.metadata = {}
-        if not self.chunk_id:
-            self.chunk_id = self._generate_chunk_id()
-    
-    def _generate_chunk_id(self) -> str:
-        """Generate a unique ID for this chunk."""
-        content = f"{self.file_path}:{self.chunk_index}:{self.start_byte}:{self.end_byte}"
-        return hashlib.md5(content.encode('utf-8')).hexdigest()[:12]
-
 
 class FileChunker:
     """Handles chunking of very large files into manageable pieces."""

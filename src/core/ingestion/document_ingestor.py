@@ -10,47 +10,16 @@ from sqlalchemy import select, insert, update, and_, or_
 from sqlalchemy.exc import IntegrityError
 
 from src.logger import get_module_logger
+from src.configs import IngestionConfig
 from src.infrastructure.db_connector import DatabaseStorage
 from src.infrastructure.db.db_models import documents_table, document_chunks_table
 from src.infrastructure.embedder import Embedder
 from src.core.ingestion.document_processor import DocumentProcessor
-from src.core.ingestion.text_chunker import TextChunker, ChunkConfig, TextChunk
-from src.core.ingestion.file_chunker import FileChunker, FileChunkConfig
+from src.core.ingestion.text_chunker import TextChunker, TextChunk
+from src.core.ingestion.file_chunker import FileChunker
+from src.core.ingestion.models import IngestionResult
 
 logger = get_module_logger(__name__)
-
-
-@dataclass
-class IngestionConfig:
-    """Configuration for document ingestion."""
-    chunk_config: ChunkConfig = None
-    file_chunk_config: FileChunkConfig = None
-    batch_size: int = 50  # Number of chunks to process in batch
-    skip_existing: bool = True  # Skip files that are already ingested
-    update_existing: bool = False  # Update existing documents if they've changed
-    enable_large_file_chunking: bool = True  # Enable file-level chunking for large files
-    
-    def __post_init__(self):
-        if self.chunk_config is None:
-            self.chunk_config = ChunkConfig()
-        if self.file_chunk_config is None:
-            self.file_chunk_config = FileChunkConfig()
-
-
-@dataclass
-class IngestionResult:
-    """Result of document ingestion process."""
-    total_files: int = 0
-    processed_files: int = 0
-    skipped_files: int = 0
-    failed_files: int = 0
-    total_chunks: int = 0
-    errors: List[str] = None
-    
-    def __post_init__(self):
-        if self.errors is None:
-            self.errors = []
-
 
 class DocumentIngestor:
     """Main service for ingesting documents into the RAG system."""
