@@ -45,7 +45,8 @@ class LLMGenerator:
         user_message: str,
         thinking_model: bool = True,
         max_new_tokens: int = 8096,
-        rag_enabled: bool = False
+        rag_enabled: bool = False,
+        conversation_id: Optional[int] = None
     ) -> Tuple[str, str, Optional[SearchResult]]:
         """
         Generate a response using retrieval-augmented generation.
@@ -55,6 +56,7 @@ class LLMGenerator:
             thinking_model: Whether to use thinking capabilities
             max_new_tokens: Maximum tokens for generation
             rag_enabled: Whether to use retrieval-augmented generation
+            conversation_id: Optional conversation ID for message storage
             
         Returns:
             Tuple of (response, thinking, retrieval_result)
@@ -75,7 +77,7 @@ class LLMGenerator:
             context_for_generation.append({'role': 'user', 'content': augmented_message})
             
             response, thinking = self.llm_controller.generate_response_from_context(
-                context_for_generation, thinking_model, max_new_tokens
+                context_for_generation, max_new_tokens, conversation_id
             )
         else:
             # Standard generation - add user message to context and generate
@@ -83,7 +85,7 @@ class LLMGenerator:
             context_for_generation.append({'role': 'user', 'content': user_message})
             
             response, thinking = self.llm_controller.generate_response_from_context(
-                context_for_generation, thinking_model, max_new_tokens
+                context_for_generation, max_new_tokens, conversation_id
             )
 
         logger.info(f"RAG response generated with retrieval: {retrieval_result is not None}")

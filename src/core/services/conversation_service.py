@@ -70,13 +70,14 @@ class ConversationService:
 
         logger.info(f"Conversation Service initialized with conversation ID: {self.conversation_id}")
 
-    def add_conversation_message(self, role: str, message: str) -> None:
+    def add_conversation_message(self, role: str, message: str, token_count: int = 0) -> None:
         """
         Add a message to both context and database.
 
         Args:
             role: The role of the message sender (e.g., 'user', 'assistant', 'system')
             message: The content of the message to add to context
+            token_count: The number of tokens in the message
 
         Returns:
             None
@@ -85,7 +86,7 @@ class ConversationService:
         if role != 'assistant-reasoning':
             self.context_window.add_message(role, message)
         # Store in database
-        self.messages_controller.insert_single_message(self.conversation_id, role, message, 0) # TODO: add token count
+        self.messages_controller.insert_single_message(self.conversation_id, role, message, token_count)
         self.conversations_controller.update_message_count(self.conversation_id, 1)
 
     def generate_chat_response(self, rag_enabled: bool = False, thinking_model: bool = True, max_new_tokens: int = 8096) -> Tuple[str, Optional[str], Optional[Any]]:
@@ -119,6 +120,10 @@ class ConversationService:
         response, thinking, retrieval_result = self.llm_generator.generate_response(
             user_message, thinking_model, max_new_tokens, rag_enabled=rag_enabled
         )
+
+        # Add the response to the context window
+        if response:
+            self.context_window.add_message('assistant', response)
 
         return response, thinking, retrieval_result
 

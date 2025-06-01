@@ -1,40 +1,34 @@
-import os
-from sentence_transformers import SentenceTransformer
+from openai import OpenAI
 from pgvector import Vector
+from src.logger import get_module_logger
+
+logger = get_module_logger(__name__)
 
 class Embedder:
     def __init__(self):
-        self.model_name: str = os.getenv("EMBD_MODEL")
-        self.local_embeddings_dir: str = f"ai_models/{self.model_name}"
-        self.embeddings_download_cache_dir: str = f"ai_models/cache"
-        
-        self.model = self._load_local_embeddings()
-
-        return None
-
-    def _load_local_embeddings(self) -> SentenceTransformer:
-        """
-        Loads or downloads the sentence transformers embeddings model.
-        
-        This method checks if the model exists in the local directory. If not, it downloads
-        the model from HuggingFace, saves it locally, and then reloads it from the local
-        directory to ensure consistent loading behavior.
-        
-        Returns:
-            tuple: (AutoTokenizer, AutoModelForCausalLM) The loaded tokenizer and model instances
-        """
-
-        if not os.path.exists(self.local_embeddings_dir):
-            
-            embeddings_model = SentenceTransformer(self.model_name)
-            os.makedirs(self.local_embeddings_dir)
-            embeddings_model.save_pretrained(self.local_embeddings_dir)
-
-            embeddings_model = None
-
-        embeddings_model = SentenceTransformer(self.local_embeddings_dir)
-
-        return embeddings_model
+        # Point to your local embeddings server
+        self.client = OpenAI(
+            api_key="EMPTY",  # The server doesn't require a real API key
+            base_url="http://lab.internal:8008/v1"
+        )
+        logger.info("Embedder initialized with HuggingFace text embeddings server")
 
     def embed(self, text: str) -> Vector:
-        return self.model.encode(text)
+        """
+        Generate embeddings for the given text using the HuggingFace text embeddings server.
+        
+        Args:
+            text (str): The input text to embed
+            
+        Returns:
+            Vector: The embedding vector
+        """
+        try:
+            response = self.client.embeddings.create(
+                model="sentence-transformers/all-MiniLM-L6-v2",
+                input=text
+            )
+            return Vector(response.data[0].embedding)
+        except Exception as e:
+            logger.error(f"Error generating embedding: {str(e)}")
+            raise

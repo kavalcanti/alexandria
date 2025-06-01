@@ -37,6 +37,7 @@ dependencies = [
     "nvidia-nccl-cu12==2.26.2",
     "nvidia-nvjitlink-cu12==12.6.85",
     "nvidia-nvtx-cu12==12.6.77",
+    "openai>=1.82.1",
     "packaging==25.0",
     "pdfplumber>=0.11.6",
     "pgvector==0.4.1",
