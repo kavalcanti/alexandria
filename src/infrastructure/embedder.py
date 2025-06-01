@@ -1,3 +1,4 @@
+import os
 from openai import OpenAI
 from pgvector import Vector
 from src.logger import get_module_logger
@@ -9,7 +10,7 @@ class Embedder:
         # Point to your local embeddings server
         self.client = OpenAI(
             api_key="EMPTY",  # The server doesn't require a real API key
-            base_url="http://lab.internal:8008/v1"
+            base_url=os.getenv("EMBEDDINGS_SERVER_URL")
         )
         logger.info("Embedder initialized with HuggingFace text embeddings server")
 

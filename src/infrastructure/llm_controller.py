@@ -1,3 +1,4 @@
+import os
 from openai import OpenAI
 from typing import List, Dict, Tuple, Optional, Any
 import re
@@ -19,7 +20,7 @@ class LLMController:
         # Point to your local vLLM server
         self.client = OpenAI(
             api_key="EMPTY",  # vLLM doesn't require a real API key
-            base_url="http://lab.internal:8000/v1"
+            base_url=os.getenv("VLLM_SERVER_URL")
         )
         logger.info("LLMController initialized with vLLM server")
 
