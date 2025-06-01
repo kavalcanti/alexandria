@@ -1,11 +1,9 @@
 """File chunking utilities for handling very large text and markdown files."""
 
-import os
+
 import tempfile
-import hashlib
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Iterator, Tuple
-from dataclasses import dataclass
 from src.configs import FileChunkConfig, FileChunkStrategy
 from src.logger import get_module_logger
 from src.core.ingestion.models import FileChunk

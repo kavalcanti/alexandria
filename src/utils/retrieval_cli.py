@@ -480,7 +480,7 @@ def handle_stats(args) -> int:
 def handle_test_embedding(args) -> int:
     """Handle the test-embedding command."""
     try:
-        from infrastructure.embedder import Embedder
+        from src.infrastructure.embedder import Embedder
         import time
         
         embedder = Embedder()

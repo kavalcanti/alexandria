@@ -148,12 +148,21 @@ class DocumentIngestor:
             if self.config.skip_existing:
                 existing_doc = self._get_existing_document(file_metadata['file_hash'])
                 if existing_doc:
-                    if not self.config.update_existing:
-                        logger.debug(f"Skipping existing file: {file_path}")
-                        return {'success': True, 'skipped': True, 'chunk_count': 0}
-                    elif existing_doc['last_modified'] >= file_metadata['last_modified']:
-                        logger.debug(f"Skipping unchanged file: {file_path}")
-                        return {'success': True, 'skipped': True, 'chunk_count': 0}
+                    # Check if the document has any chunk records
+                    with self.db_storage.get_connection() as conn:
+                        from src.infrastructure.db.db_models import document_chunks_table
+                        chunk_count = conn.execute(
+                            select(document_chunks_table.c.id).where(
+                                document_chunks_table.c.document_id == existing_doc['id']
+                            )
+                        ).fetchone()
+                    if chunk_count:
+                        if not self.config.update_existing:
+                            logger.debug(f"Skipping existing file: {file_path}")
+                            return {'success': True, 'skipped': True, 'chunk_count': 0}
+                        elif existing_doc['last_modified'] >= file_metadata['last_modified']:
+                            logger.debug(f"Skipping unchanged file: {file_path}")
+                            return {'success': True, 'skipped': True, 'chunk_count': 0}
             
             # Check if the file needs to be chunked at file level first
             if (self.file_chunker is not None and 
