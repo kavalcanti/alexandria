@@ -37,6 +37,7 @@ class ChunkConfig:
     min_chunk_size: int = 100   # Minimum characters per chunk
     overlap_size: int = 100     # Characters to overlap between chunks
     respect_boundaries: bool = True  # Respect sentence/paragraph boundaries
+    max_tokens: int = 512  # Maximum tokens per chunk (for embedding model)
     
     # Code-specific settings
     include_function_signatures: bool = True

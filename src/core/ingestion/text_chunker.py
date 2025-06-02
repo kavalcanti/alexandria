@@ -2,7 +2,7 @@
 
 import re
 from typing import List, Optional
-
+from transformers import AutoTokenizer
 from src.configs import ChunkConfig, ChunkStrategy
 from src.logger import get_module_logger
 from src.core.ingestion.models import TextChunk
@@ -16,6 +16,14 @@ class TextChunker:
         """Initialize the text chunker with configuration."""
         self.config = config or ChunkConfig()
         
+        # Initialize the tokenizer - using the same model as our embeddings
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-mpnet-base-v2")
+            logger.info("Initialized tokenizer for text chunking")
+        except Exception as e:
+            logger.error(f"Failed to initialize tokenizer: {str(e)}")
+            raise
+        
         # Compile regex patterns for efficiency
         self._sentence_pattern = re.compile(r'(?<=[.!?])\s+')
         self._paragraph_pattern = re.compile(r'\n\s*\n')
@@ -25,6 +33,12 @@ class TextChunker:
         )
         self._markdown_header_pattern = re.compile(r'^(#{1,6})\s+(.+)$', re.MULTILINE)
     
+    def get_token_count(self, text: str) -> int:
+        """
+        Get exact token count using the embedding model's tokenizer.
+        """
+        return len(self.tokenizer.encode(text))
+
     def chunk_text(self, text: str, content_type: str = "text") -> List[TextChunk]:
         """
         Chunk text based on content type and configuration.
@@ -60,39 +74,105 @@ class TextChunker:
                 # Default to sentence-based
                 chunks = self._chunk_sentence_based(text)
             
-            # Post-process chunks
-            chunks = self._post_process_chunks(chunks)
+            # Post-process chunks with exact token count verification
+            processed_chunks = []
+            for chunk in chunks:
+                if isinstance(chunk, str):
+                    chunk_text = chunk
+                else:
+                    chunk_text = chunk.content
+                    
+                # Get exact token count
+                token_count = self.get_token_count(chunk_text)
+                
+                if token_count <= self.config.max_tokens:
+                    # Chunk is within token limit
+                    if isinstance(chunk, str):
+                        chunk = TextChunk(
+                            content=chunk_text,
+                            chunk_index=len(processed_chunks),
+                            char_count=len(chunk_text),
+                            metadata={
+                                'strategy': strategy.value,
+                                'token_count': token_count
+                            }
+                        )
+                    processed_chunks.append(chunk)
+                else:
+                    # Chunk exceeds token limit - split it further
+                    logger.debug(f"Splitting chunk with {token_count} tokens into smaller pieces")
+                    
+                    # Use fixed-size strategy to split oversized chunk
+                    sub_chunks = self._chunk_fixed_size(chunk_text)
+                    
+                    # Recursively process sub-chunks to ensure they meet token limit
+                    for sub_chunk in sub_chunks:
+                        sub_token_count = self.get_token_count(sub_chunk)
+                        if sub_token_count <= self.config.max_tokens:
+                            processed_chunk = TextChunk(
+                                content=sub_chunk,
+                                chunk_index=len(processed_chunks),
+                                char_count=len(sub_chunk),
+                                metadata={
+                                    'strategy': f"{strategy.value}_split",
+                                    'token_count': sub_token_count,
+                                    'parent_chunk_size': token_count
+                                }
+                            )
+                            processed_chunks.append(processed_chunk)
+                        else:
+                            # If still too large, recursively chunk it
+                            sub_processed = self.chunk_text(sub_chunk, content_type)
+                            processed_chunks.extend(sub_processed)
             
-            logger.debug(f"Created {len(chunks)} chunks using {strategy.value} strategy")
-            return chunks
+            # Update chunk indices to ensure they're sequential
+            for i, chunk in enumerate(processed_chunks):
+                chunk.chunk_index = i
+                
+            logger.debug(f"Created {len(processed_chunks)} chunks using {strategy.value} strategy")
+            return processed_chunks
             
         except Exception as e:
             logger.error(f"Error chunking text: {str(e)}")
             raise
     
     def _chunk_fixed_size(self, text: str) -> List[str]:
-        """Chunk text into fixed-size pieces with overlap."""
+        """Chunk text into fixed-size pieces with overlap, using token count as primary limit."""
         chunks = []
         start = 0
         text_length = len(text)
         
+        # Estimate initial chunk size based on average chars per token
+        # This is a rough estimate to avoid too many token count checks
+        avg_chars_per_token = 4  # Conservative estimate
+        initial_chunk_size = self.config.max_tokens * avg_chars_per_token
+        
         while start < text_length:
-            end = start + self.config.max_chunk_size
+            # Calculate initial proposed end
+            proposed_end = start + initial_chunk_size
             
-            # If we're not at the end and respecting boundaries, try to break at word boundary
-            if end < text_length and self.config.respect_boundaries:
-                # Look for the last space within the chunk
-                last_space = text.rfind(' ', start, end)
-                if last_space > start:
-                    end = last_space
+            # Adjust end position based on token limit
+            end = self._adjust_chunk_size(text, start, proposed_end)
             
             chunk = text[start:end].strip()
-            if len(chunk) >= self.config.min_chunk_size:
+            if chunk and self._is_chunk_within_limits(chunk):
                 chunks.append(chunk)
+            elif chunk:
+                # If chunk is too large, try more aggressive splitting
+                half_size = len(chunk) // 2
+                first_half = chunk[:half_size].strip()
+                second_half = chunk[half_size:].strip()
+                
+                if first_half and self._is_chunk_within_limits(first_half):
+                    chunks.append(first_half)
+                if second_half and self._is_chunk_within_limits(second_half):
+                    chunks.append(second_half)
             
             # Move start position with overlap
-            start = end - self.config.overlap_size
-            if start < 0:
+            # Ensure overlap doesn't create chunks that are too small
+            overlap = min(self.config.overlap_size, (end - start) // 4)
+            start = end - overlap
+            if start < 0 or start >= end:
                 start = end
         
         return chunks
@@ -302,7 +382,76 @@ class TextChunker:
         
         return processed_chunks
     
+    def _count_words(self, text: str) -> int:
+        """Deprecated: Use get_token_count instead."""
+        logger.warning("_count_words is deprecated, use get_token_count instead")
+        return self.get_token_count(text)
+
     def estimate_token_count(self, text: str) -> int:
-        """Estimate token count for text (rough approximation)."""
-        # Simple estimation: ~4 characters per token for English text
-        return len(text) // 4 
+        """Deprecated: Use get_token_count instead."""
+        logger.warning("estimate_token_count is deprecated, use get_token_count instead")
+        return self.get_token_count(text)
+
+    def _is_chunk_within_limits(self, chunk: str) -> bool:
+        """Check if chunk is within both character and token limits."""
+        # Check character-based limits
+        if len(chunk) < self.config.min_chunk_size:
+            return False
+        if len(chunk) > self.config.max_chunk_size:
+            return False
+            
+        # Get exact token count
+        token_count = self.get_token_count(chunk)
+        return token_count <= self.config.max_tokens
+
+    def _adjust_chunk_size(self, text: str, start: int, proposed_end: int) -> int:
+        """
+        Adjust chunk size to respect token limits using exact tokenization.
+        Returns the adjusted end position.
+        """
+        end = min(proposed_end, len(text))
+        chunk = text[start:end]
+        token_count = self.get_token_count(chunk)
+        
+        # Binary search for the right chunk size that respects token limit
+        while token_count > self.config.max_tokens:
+            # Binary search step
+            end = start + (end - start) // 2
+            chunk = text[start:end]
+            token_count = self.get_token_count(chunk)
+            
+            # Safety check
+            if end <= start:
+                logger.warning("Chunk size reduction failed - falling back to minimum size")
+                return start + self.config.min_chunk_size
+        
+        # Now we have a safe upper bound, try to expand while staying under limit
+        # Use smaller increments (50 chars) for more precise control
+        while end < proposed_end:
+            next_end = min(end + 50, proposed_end)
+            test_chunk = text[start:next_end]
+            test_tokens = self.get_token_count(test_chunk)
+            if test_tokens > self.config.max_tokens:
+                break
+            end = next_end
+            chunk = test_chunk
+            token_count = test_tokens
+        
+        # Find natural break points within token limit
+        if end < len(text) and self.config.respect_boundaries:
+            # Try different types of boundaries in order of preference
+            boundaries = [
+                ('\n\n', self.config.min_chunk_size),  # Paragraph break
+                ('. ', self.config.min_chunk_size),    # Sentence break
+                ('\n', self.config.min_chunk_size),    # Line break
+                (' ', self.config.min_chunk_size // 2) # Word break
+            ]
+            
+            for boundary, min_size in boundaries:
+                break_pos = text.rfind(boundary, start + min_size, end)
+                if break_pos > start:
+                    test_chunk = text[start:break_pos + len(boundary)]
+                    if self.get_token_count(test_chunk) <= self.config.max_tokens:
+                        return break_pos + len(boundary)
+        
+        return end 

@@ -64,8 +64,8 @@ class IngestionDatabaseOps:
                         content_type=file_metadata['content_type'],
                         last_modified=file_metadata['last_modified'],
                         status='processing',
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow()
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
                     )
                 )
                 doc_id = result.inserted_primary_key[0]
