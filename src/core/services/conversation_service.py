@@ -104,7 +104,7 @@ class ConversationService:
         Returns:
             Tuple[str, Optional[str], Optional[Any]]: The generated response, thinking, and retrieval result from the LLM
         """
-
+        logger.info(f"Context window length: {len(self.context_window.context_window)}")
         if len(self.context_window.context_window) == 4:
             title, title_embedding = self.llm_generator.generate_conversation_title()
             self.conversations_controller.update_conversation_title(self.conversation_id, title, title_embedding)

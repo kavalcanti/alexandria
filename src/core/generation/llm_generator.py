@@ -95,7 +95,9 @@ class LLMGenerator:
         """
         Generate a conversation title from the context window.
         """
+        logger.info(f"Generating conversation title")
         context_window = self.context_window.get_title_generation_context()
         title, _ = self.llm_controller.generate_response_from_context(context_window, False, 300)
         title_embedding = self.embedder.embed(title)
+        logger.info(f"Conversation title generated")
         return title, title_embedding
