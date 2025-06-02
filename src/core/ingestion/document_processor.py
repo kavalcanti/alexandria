@@ -45,10 +45,11 @@ class DocumentProcessor:
                 'filename': filepath.name,
                 'filepath': str(filepath.absolute()),
                 'file_size': stat.st_size,
-                'mime_type': mime_type,
+                'mime_type': mime_type or 'application/octet-stream',
                 'last_modified': datetime.fromtimestamp(stat.st_mtime),
                 'content_type': self._determine_content_type(filepath),
-                'extension': filepath.suffix.lower()
+                'extension': filepath.suffix.lower(),
+                'metadata': {}  # Initialize empty metadata dict
             }
             
             # Calculate file hash for deduplication
@@ -134,59 +135,43 @@ class DocumentProcessor:
     def _extract_pdf_text(self, filepath: Path) -> str:
         """Extract text from PDF files."""
         try:
-            # Try to import PDF processing libraries
-            try:
-                import PyPDF2
-                return self._extract_pdf_pypdf2(filepath)
-            except ImportError:
-                try:
-                    import pdfplumber
-                    return self._extract_pdf_pdfplumber(filepath)
-                except ImportError:
-                    logger.warning(
-                        f"No PDF processing library available. "
-                        f"Install PyPDF2 or pdfplumber to process {filepath}"
-                    )
-                    return f"[PDF content from {filepath.name} - PDF processing library not available]"
+            import pdfplumber
+            return self._extract_pdf_pdfplumber(filepath)
+        except ImportError:
+            logger.warning(
+                f"No PDF processing library available. "
+                f"Install pdfplumber to process {filepath}"
+            )
+            return f"[PDF content from {filepath.name} - PDF processing library not available]"
                     
         except Exception as e:
             logger.error(f"Error extracting PDF text from {filepath}: {str(e)}")
             return f"[Error extracting PDF content from {filepath.name}: {str(e)}]"
-    
-    def _extract_pdf_pypdf2(self, filepath: Path) -> str:
-        """Extract text using PyPDF2."""
-        import PyPDF2
-        
-        text_content = []
-        with open(filepath, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            for page_num, page in enumerate(pdf_reader.pages):
-                try:
-                    text = page.extract_text()
-                    if text.strip():
-                        text_content.append(f"[Page {page_num + 1}]\n{text}")
-                except Exception as e:
-                    logger.warning(f"Error extracting page {page_num + 1} from {filepath}: {str(e)}")
-                    continue
-        
-        return '\n\n'.join(text_content)
     
     def _extract_pdf_pdfplumber(self, filepath: Path) -> str:
         """Extract text using pdfplumber."""
         import pdfplumber
         
         text_content = []
-        with pdfplumber.open(filepath) as pdf:
-            for page_num, page in enumerate(pdf.pages):
-                try:
-                    text = page.extract_text()
-                    if text and text.strip():
-                        text_content.append(f"[Page {page_num + 1}]\n{text}")
-                except Exception as e:
-                    logger.warning(f"Error extracting page {page_num + 1} from {filepath}: {str(e)}")
-                    continue
-        
-        return '\n\n'.join(text_content)
+        try:
+            with pdfplumber.open(filepath, laparams={'detect_vertical': True}) as pdf:
+                for page_num, page in enumerate(pdf.pages):
+                    try:
+                        # Extract text with better handling of layout
+                        text = page.extract_text(x_tolerance=3, y_tolerance=3)
+                        if text and text.strip():
+                            # Clean up text and normalize whitespace
+                            cleaned_text = ' '.join(text.split())
+                            text_content.append(f"[Page {page_num + 1}]\n{cleaned_text}")
+                    except Exception as e:
+                        logger.warning(f"Error extracting page {page_num + 1} from {filepath}: {str(e)}")
+                        continue
+            
+            return '\n\n'.join(text_content) if text_content else ""
+            
+        except Exception as e:
+            logger.error(f"Error in pdfplumber extraction for {filepath}: {str(e)}")
+            return ""
     
     def _extract_document_text(self, filepath: Path) -> str:
         """Extract text from document files (docx, doc, etc.)."""

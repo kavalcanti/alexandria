@@ -64,6 +64,7 @@ class DocumentIngestor:
             for file_path in supported_files:
                 try:
                     file_result = self._process_single_file(file_path)
+                    logger.info(f"File result: {file_result}")
                     self._aggregate_file_result(result, file_result, file_path)
                 except KeyboardInterrupt:
                     logger.info("Keyboard interrupt received, stopping ingestion...")
@@ -327,7 +328,7 @@ class DocumentIngestor:
                             'content_hash': chunk.content_hash,
                             'token_count': token_count,
                             'char_count': chunk.char_count,
-                            'embedding': embedding.tolist(),  # Convert numpy array to list
+                            'embedding': embedding,  # Convert numpy array to list
                             'metadata': chunk.metadata
                         }
                         
@@ -485,7 +486,7 @@ class DocumentIngestor:
                     'content_hash': chunk.content_hash,
                     'token_count': token_count,
                     'char_count': chunk.char_count,
-                    'embedding': embedding.tolist(),  # Convert numpy array to list
+                    'embedding': embedding,  # Convert numpy array to list
                     'metadata': chunk.metadata
                 }
                 
