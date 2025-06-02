@@ -40,7 +40,7 @@ class LLMGenerator:
 
         logger.info("LLMGenerator initialized with retrieval integration")
 
-    def process_generation_type(
+    def process_generation_by_type(
         self,
         user_message: str,
         max_new_tokens: int = 8096,
