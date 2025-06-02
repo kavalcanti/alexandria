@@ -24,7 +24,7 @@ def create_keybindings(
     chat_window: ScrollablePane,
     thinking_window: ScrollablePane,
     msg_window: Window,
-    conversation_manager,
+    conversation_service,
     state_manager,
     application: Optional[Application] = None
     ) -> KeyBindings:
@@ -47,7 +47,7 @@ def create_keybindings(
         chat_window: Scrollable pane for chat
         thinking_window: Scrollable pane for thinking
         msg_window: Window for message input
-        conversation_manager: Manager for conversation state and generation
+        conversation_service: Service for conversation state and generation
         state_manager: Manager for UI state
         application: Optional Application instance for focus management
     
@@ -171,7 +171,7 @@ def create_keybindings(
 
             logger.info("Using standard (RAG-less) response generation")
             # Always use standard response generation for Ctrl+Space
-            ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(conversation_manager.generate_chat_response)
+            ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(conversation_service.generate_chat_response)
             state_manager.append_assistant_message(ai_answer, ai_thinking)
             
             app.invalidate()
@@ -211,7 +211,7 @@ def create_keybindings(
             logger.info("Using RAG-enabled response generation")
             # Generate RAG response using the existing method with rag_enabled=True
             ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(
-                conversation_manager.generate_chat_response, True, True, 8096
+                conversation_service.generate_chat_response, True, True, 8096
                 )
             
             # Handle retrieval information

@@ -40,11 +40,11 @@ class LLMGenerator:
 
         logger.info("LLMGenerator initialized with retrieval integration")
 
-    def generate_response(
+    def process_generation_type(
         self,
         user_message: str,
-        thinking_model: bool = True,
         max_new_tokens: int = 8096,
+        thinking_model: bool = True,
         rag_enabled: bool = False,
         conversation_id: Optional[int] = None
     ) -> Tuple[str, str, Optional[SearchResult]]:
@@ -88,7 +88,7 @@ class LLMGenerator:
                 context_for_generation, max_new_tokens, conversation_id
             )
 
-        logger.info(f"RAG response generated with retrieval: {retrieval_result is not None}")
+        logger.info(f"Generated response. Used retrieval: {retrieval_result is not None}")
         return response, thinking, retrieval_result
     
     def generate_conversation_title(self) -> str:
@@ -96,8 +96,8 @@ class LLMGenerator:
         Generate a conversation title from the context window.
         """
         logger.info(f"Generating conversation title")
-        context_window = self.context_window.get_title_generation_context()
-        title, _ = self.llm_controller.generate_response_from_context(context_window, False, 300)
+        title_gen_context_window = self.context_window.get_title_generation_context()
+        title, _ = self.llm_controller.generate_response_from_context(title_gen_context_window, max_new_tokens=300)
         title_embedding = self.embedder.embed(title)
         logger.info(f"Conversation title generated")
         return title, title_embedding

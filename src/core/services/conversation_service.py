@@ -105,6 +105,7 @@ class ConversationService:
             Tuple[str, Optional[str], Optional[Any]]: The generated response, thinking, and retrieval result from the LLM
         """
         logger.info(f"Context window length: {len(self.context_window.context_window)}")
+        logger.info(f"Context window: {self.context_window.context_window}")
         if len(self.context_window.context_window) == 4:
             title, title_embedding = self.llm_generator.generate_conversation_title()
             self.conversations_controller.update_conversation_title(self.conversation_id, title, title_embedding)
@@ -117,13 +118,9 @@ class ConversationService:
                 break
         
         # Generate response using LLM generator (it doesn't modify context)
-        response, thinking, retrieval_result = self.llm_generator.generate_response(
+        response, thinking, retrieval_result = self.llm_generator.process_generation_type(
             user_message, thinking_model, max_new_tokens, rag_enabled=rag_enabled
         )
-
-        # Add the response to the context window
-        if response:
-            self.context_window.add_message('assistant', response)
 
         return response, thinking, retrieval_result
 
