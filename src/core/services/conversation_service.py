@@ -118,7 +118,7 @@ class ConversationService:
                 break
         
         # Generate response using LLM generator (it doesn't modify context)
-        response, thinking, retrieval_result = self.llm_generator.process_generation_type(
+        response, thinking, retrieval_result = self.llm_generator.process_generation_by_type(
             user_message, thinking_model, max_new_tokens, rag_enabled=rag_enabled
         )
 
