@@ -27,7 +27,7 @@ class LLMController:
     def generate_response_from_context(
         self,
         context_window: List[dict],
-        max_new_tokens: int = 8096,
+        max_tokens: int = 8096,
         conversation_id: Optional[int] = None
     ) -> Tuple[str, Optional[str]]:
         """
@@ -35,7 +35,7 @@ class LLMController:
         
         Args:
             context_window (list): List of conversation messages
-            max_new_tokens (int): Maximum number of tokens to generate
+            max_tokens (int): Maximum number of tokens to generate
             conversation_id (int): Optional conversation ID for message storage
             
         Returns:
@@ -47,10 +47,16 @@ class LLMController:
             # Get the last user message
             user_message = next((msg['content'] for msg in reversed(context_window) if msg['role'] == 'user'), None)
 
+            logger.info(f"LLMController.generate_response_from_context called with max_tokens={max_tokens}")
+            logger.info("Making OpenAI API call with parameters:")
+            logger.info(f"- model: Qwen/Qwen3-0.6B")
+            logger.info(f"- max_tokens: {max_tokens}")
+            logger.info(f"- temperature: 0.7")
+
             self.last_response = self.client.chat.completions.create(
                 model="Qwen/Qwen3-0.6B",  # This should be configurable
                 messages=context_window,
-                max_tokens=max_new_tokens,
+                max_tokens=max_tokens,
                 temperature=0.7
             )
             

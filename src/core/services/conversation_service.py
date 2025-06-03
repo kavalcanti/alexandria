@@ -89,7 +89,7 @@ class ConversationService:
         self.messages_controller.insert_single_message(self.conversation_id, role, message, token_count)
         self.conversations_controller.update_message_count(self.conversation_id, 1)
 
-    def generate_chat_response(self, rag_enabled: bool = False, thinking_model: bool = True, max_new_tokens: int = 8096) -> Tuple[str, Optional[str], Optional[Any]]:
+    def generate_chat_response(self, rag_enabled: bool = False, thinking_model: bool = True, max_tokens: int = 8096) -> Tuple[str, Optional[str], Optional[Any]]:
         """
         Generate a response using the LLM based on current context.
 
@@ -98,12 +98,13 @@ class ConversationService:
                 Defaults to False.
             thinking_model: Whether to use the thinking model for response generation.
                 Defaults to True.
-            max_new_tokens: Maximum number of tokens to generate in the response.
+            max_tokens: Maximum number of tokens to generate in the response.
                 Defaults to 8096.
 
         Returns:
             Tuple[str, Optional[str], Optional[Any]]: The generated response, thinking, and retrieval result from the LLM
         """
+        logger.info(f"ConversationService.generate_chat_response called with max_tokens={max_tokens}")
         logger.info(f"Context window length: {len(self.context_window.context_window)}")
         logger.info(f"Context window: {self.context_window.context_window}")
         if len(self.context_window.context_window) == 4:
@@ -119,7 +120,10 @@ class ConversationService:
         
         # Generate response using LLM generator (it doesn't modify context)
         response, thinking, retrieval_result = self.llm_generator.process_generation_by_type(
-            user_message, thinking_model, max_new_tokens, rag_enabled=rag_enabled
+            user_message=user_message,
+            max_tokens=max_tokens,
+            thinking_model=thinking_model,
+            rag_enabled=rag_enabled
         )
 
         return response, thinking, retrieval_result

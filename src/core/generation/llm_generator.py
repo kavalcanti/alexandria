@@ -43,7 +43,7 @@ class LLMGenerator:
     def process_generation_by_type(
         self,
         user_message: str,
-        max_new_tokens: int = 8096,
+        max_tokens: int = 8096,
         thinking_model: bool = True,
         rag_enabled: bool = False,
         conversation_id: Optional[int] = None
@@ -54,13 +54,14 @@ class LLMGenerator:
         Args:
             user_message: User's question or prompt
             thinking_model: Whether to use thinking capabilities
-            max_new_tokens: Maximum tokens for generation
+            max_tokens: Maximum tokens for generation
             rag_enabled: Whether to use retrieval-augmented generation
             conversation_id: Optional conversation ID for message storage
             
         Returns:
             Tuple of (response, thinking, retrieval_result)
         """
+        logger.info(f"LLMGenerator.process_generation_by_type called with max_tokens={max_tokens}")
         
         retrieval_result = None
         if rag_enabled:
@@ -77,7 +78,7 @@ class LLMGenerator:
             context_for_generation.append({'role': 'user', 'content': augmented_message})
             
             response, thinking = self.llm_controller.generate_response_from_context(
-                context_for_generation, max_new_tokens, conversation_id
+                context_for_generation, max_tokens, conversation_id
             )
         else:
             # Standard generation - add user message to context and generate
@@ -85,7 +86,7 @@ class LLMGenerator:
             context_for_generation.append({'role': 'user', 'content': user_message})
             
             response, thinking = self.llm_controller.generate_response_from_context(
-                context_for_generation, max_new_tokens, conversation_id
+                context_for_generation, max_tokens, conversation_id
             )
 
         logger.info(f"Generated response. Used retrieval: {retrieval_result is not None}")
@@ -97,7 +98,7 @@ class LLMGenerator:
         """
         logger.info(f"Generating conversation title")
         title_gen_context_window = self.context_window.get_title_generation_context()
-        title, _ = self.llm_controller.generate_response_from_context(title_gen_context_window, max_new_tokens=300)
+        title, _ = self.llm_controller.generate_response_from_context(title_gen_context_window, max_tokens=300)
         title_embedding = self.embedder.embed(title)
         logger.info(f"Conversation title generated")
         return title, title_embedding
