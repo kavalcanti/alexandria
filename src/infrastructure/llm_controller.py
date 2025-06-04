@@ -47,12 +47,6 @@ class LLMController:
             # Get the last user message
             user_message = next((msg['content'] for msg in reversed(context_window) if msg['role'] == 'user'), None)
 
-            logger.info(f"LLMController.generate_response_from_context called with max_tokens={max_tokens}")
-            logger.info("Making OpenAI API call with parameters:")
-            logger.info(f"- model: Qwen/Qwen3-0.6B")
-            logger.info(f"- max_tokens: {max_tokens}")
-            logger.info(f"- temperature: 0.7")
-
             self.last_response = self.client.chat.completions.create(
                 model="Qwen/Qwen3-0.6B",  # This should be configurable
                 messages=context_window,

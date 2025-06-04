@@ -69,12 +69,10 @@ class LLMGenerator:
 
         # Generate response with or without retrieval context
         if retrieval_result and retrieval_result.matches:
-            # For RAG, augment the user message with context
-            augmented_message = self.rag_tools.augment_query_with_context(user_message, retrieval_result)
-            logger.info(f"Augmented query: {augmented_message}")
-            
+            # For RAG, augment the user message with context-
             # Create context with augmented message for generation
             context_for_generation = self.context_window.context_window.copy()
+            augmented_message = self.rag_tools.augment_query_with_context(user_message, retrieval_result)
             context_for_generation.append({'role': 'user', 'content': augmented_message})
             
             response, thinking = self.llm_controller.generate_response_from_context(

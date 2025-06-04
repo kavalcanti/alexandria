@@ -48,10 +48,9 @@ class DatabaseInputValidator:
         if vector is None:
             return None
             
-        if len(vector) != expected_dim:
+        if len(vector.to_list()) != expected_dim:
             raise ValueError(f"Vector must have dimension {expected_dim}")
-            
-            
+             
         return vector
 
     @staticmethod
