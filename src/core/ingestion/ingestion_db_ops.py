@@ -3,7 +3,7 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from sqlalchemy import select, insert, update, and_, or_
+from sqlalchemy import select, insert, update, and_, or_, func
 from sqlalchemy.exc import IntegrityError
 from pgvector import Vector
 
@@ -33,14 +33,32 @@ class IngestionDatabaseOps:
         Returns:
             Document record if exists, None otherwise
         """
-        with self.db_storage.get_connection() as conn:
-            result = conn.execute(
-                select(documents_table).where(
-                    documents_table.c.file_hash == file_hash
-                )
-            ).first()
-            
-            return dict(result) if result else None
+        try:
+            with self.db_storage.get_connection() as conn:
+                result = conn.execute(
+                    select(documents_table).where(
+                        documents_table.c.file_hash == file_hash
+                    )
+                ).first()
+                
+                return dict(result._mapping) if result else None
+                
+        except Exception as e:
+            logger.error(f"Error checking existing document: {str(e)}")
+            return None
+
+    def get_document_chunk_count(self, doc_id: int) -> int:
+        """Get the number of chunks for a document."""
+        try:
+            with self.db_storage.get_connection() as conn:
+                result = conn.execute(
+                    select(func.count(document_chunks_table.c.id))
+                    .where(document_chunks_table.c.document_id == doc_id)
+                ).scalar()
+                return result or 0
+        except Exception as e:
+            logger.error(f"Error getting document chunk count: {str(e)}")
+            return 0
     
     def create_document_record(self, file_metadata: Dict[str, Any]) -> int:
         """
@@ -63,12 +81,14 @@ class IngestionDatabaseOps:
                         mime_type=file_metadata['mime_type'],
                         content_type=file_metadata['content_type'],
                         last_modified=file_metadata['last_modified'],
+                        metadata={'extension': file_metadata.get('extension', '')},
                         status='processing',
                         created_at=datetime.now(),
                         updated_at=datetime.now()
                     )
                 )
                 doc_id = result.inserted_primary_key[0]
+                conn.commit()
                 logger.debug(f"Created document record with ID: {doc_id}")
                 return doc_id
                 
@@ -117,7 +137,7 @@ class IngestionDatabaseOps:
                             'content_hash': chunk.content_hash,
                             'char_count': chunk.char_count,
                             'token_count': chunk.token_count,
-                            'embedding': embedding,  # pgvector.Vector object is used directly
+                            'embedding': embedding,
                             'metadata': metadata,
                             'created_at': datetime.now()
                         }
@@ -133,15 +153,11 @@ class IngestionDatabaseOps:
                             insert(document_chunks_table),
                             chunk_records
                         )
+                        conn.commit()
                         logger.debug(f"Stored {len(chunk_records)} chunks for document {doc_id}")
                         return len(chunk_records)
                     except Exception as insert_e:
                         logger.error(f"Error inserting chunks: {str(insert_e)}")
-                        # Log the first chunk record for debugging
-                        if chunk_records:
-                            first_record = dict(chunk_records[0])
-                            first_record['embedding'] = f"<Vector({len(first_record['embedding'])} dimensions)>"
-                            logger.error(f"First chunk record: {first_record}")
                         raise
                 return 0
                 
@@ -172,54 +188,90 @@ class IngestionDatabaseOps:
                     .where(documents_table.c.id == doc_id)
                     .values(**update_values)
                 )
+                conn.commit()
                 logger.debug(f"Updated document {doc_id} status to {status}")
                 
         except Exception as e:
             logger.error(f"Error updating document status: {str(e)}")
             raise
     
-    def delete_document_record(self, doc_id: int):
+    def delete_document_record(self, file_hash: str) -> bool:
         """
         Delete a document and its chunks from the database.
         
         Args:
-            doc_id: ID of the document to delete
+            file_hash: SHA-256 hash of the file to delete
+            
+        Returns:
+            True if document was deleted, False otherwise
         """
         try:
             with self.db_storage.get_connection() as conn:
-                # Delete chunks first due to foreign key constraint
+                # Get document ID first
+                doc = self.get_existing_document(file_hash)
+                if not doc:
+                    logger.warning(f"No document found with hash {file_hash}")
+                    return False
+                
+                # Delete chunks first (should be handled by CASCADE, but be explicit)
                 conn.execute(
                     document_chunks_table.delete().where(
-                        document_chunks_table.c.document_id == doc_id
+                        document_chunks_table.c.document_id == doc['id']
                     )
                 )
                 
                 # Delete document record
-                conn.execute(
+                result = conn.execute(
                     documents_table.delete().where(
-                        documents_table.c.id == doc_id
+                        documents_table.c.file_hash == file_hash
                     )
                 )
-                logger.debug(f"Deleted document {doc_id} and its chunks")
+                
+                if result.rowcount > 0:
+                    conn.commit()
+                    logger.info(f"Deleted document with hash {file_hash}")
+                    return True
+                return False
                 
         except Exception as e:
             logger.error(f"Error deleting document record: {str(e)}")
-            raise
-    
-    def get_document_chunk_count(self, doc_id: int) -> int:
-        """
-        Get the number of chunks for a document.
-        
-        Args:
-            doc_id: ID of the document
-            
-        Returns:
-            Number of chunks
-        """
-        with self.db_storage.get_connection() as conn:
-            result = conn.execute(
-                select([document_chunks_table])
-                .where(document_chunks_table.c.document_id == doc_id)
-                .count()
-            ).scalar()
-            return result or 0 
+            return False
+
+    def get_ingestion_stats(self) -> Dict[str, Any]:
+        """Get statistics about ingested documents."""
+        try:
+            with self.db_storage.get_connection() as conn:
+                # Count documents by status
+                doc_stats_query = select(
+                    documents_table.c.status,
+                    func.count(documents_table.c.id).label('count')
+                ).group_by(documents_table.c.status)
+                
+                doc_stats = conn.execute(doc_stats_query).fetchall()
+                
+                # Count total chunks
+                chunk_count_query = select(func.count(document_chunks_table.c.id).label('total_chunks'))
+                chunk_count = conn.execute(chunk_count_query).scalar()
+                
+                # Count documents by content type
+                content_type_query = select(
+                    documents_table.c.content_type,
+                    func.count(documents_table.c.id).label('count')
+                ).group_by(documents_table.c.content_type)
+                
+                content_type_stats = conn.execute(content_type_query).fetchall()
+                
+                return {
+                    'document_stats': {row.status: row.count for row in doc_stats},
+                    'total_chunks': chunk_count or 0,
+                    'content_type_stats': {row.content_type: row.count for row in content_type_stats}
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting ingestion stats: {str(e)}")
+            return {
+                'document_stats': {},
+                'total_chunks': 0,
+                'content_type_stats': {},
+                'error': str(e)
+            } 
