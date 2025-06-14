@@ -122,7 +122,6 @@ class ConversationService:
         response, thinking, retrieval_result = self.llm_generator.process_generation_by_type(
             user_message=user_message,
             max_tokens=max_tokens,
-            thinking_model=thinking_model,
             rag_enabled=rag_enabled
         )
 

@@ -24,6 +24,14 @@ class LLMController:
         )
         logger.info("LLMController initialized with vLLM server")
 
+    def _parse_thinking_content(self, content: str) -> str:
+        """
+        Parse thinking content from <think> tags.
+        """
+        thinking_match = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
+        if thinking_match:
+            return thinking_match.group(1).strip()
+
     def generate_response_from_context(
         self,
         context_window: List[dict],
@@ -68,10 +76,9 @@ class LLMController:
                         token_count=self.last_response.usage.prompt_tokens
                     )
             
-            # Parse thinking content from <think> tags
-            thinking_match = re.search(r'<think>(.*?)</think>', content, re.DOTALL)
-            if thinking_match:
-                thinking_content = thinking_match.group(1).strip()
+            # Parse thinking content from <think> tags  
+            thinking_content = self._parse_thinking_content(content)
+            if thinking_content:
                 # Remove thinking content from main response
                 answer_content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
                 
@@ -84,7 +91,7 @@ class LLMController:
                         token_count=0  # Set thinking tokens to zero
                     )
             else:
-                thinking_content = None
+                thinking_content = "No reasoning content"
                 answer_content = content
 
             # Store the main response in the database if we have a conversation ID

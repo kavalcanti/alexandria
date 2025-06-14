@@ -1,9 +1,6 @@
-from typing import List, Dict, Tuple, Optional, Any
-from dataclasses import dataclass
-import asyncio
-
+from typing import Tuple, Optional
 from src.core.retrieval.retrieval_interface import RetrievalInterface
-from src.core.retrieval.models import DocumentMatch, SearchResult
+from src.core.retrieval.models import SearchResult
 from src.infrastructure.llm_controller import LLMController
 from src.infrastructure.embedder import Embedder
 from src.core.context.context_window import ContextWindow
@@ -44,7 +41,6 @@ class LLMGenerator:
         self,
         user_message: str,
         max_tokens: int = 8096,
-        thinking_model: bool = True,
         rag_enabled: bool = False,
         conversation_id: Optional[int] = None
     ) -> Tuple[str, str, Optional[SearchResult]]:
@@ -61,7 +57,7 @@ class LLMGenerator:
         Returns:
             Tuple of (response, thinking, retrieval_result)
         """
-        logger.info(f"LLMGenerator.process_generation_by_type called with max_tokens={max_tokens}")
+        logger.info("LLMGenerator.process_generation_by_type called with max_tokens=%d", max_tokens)
         
         retrieval_result = None
         if rag_enabled:
@@ -87,16 +83,16 @@ class LLMGenerator:
                 context_for_generation, max_tokens, conversation_id
             )
 
-        logger.info(f"Generated response. Used retrieval: {retrieval_result is not None}")
+        logger.info("Generated response. Used retrieval: %s", retrieval_result is not None)
         return response, thinking, retrieval_result
     
     def generate_conversation_title(self) -> str:
         """
         Generate a conversation title from the context window.
         """
-        logger.info(f"Generating conversation title")
+        logger.info("Generating conversation title")
         title_gen_context_window = self.context_window.get_title_generation_context()
         title, _ = self.llm_controller.generate_response_from_context(title_gen_context_window, max_tokens=300)
         title_embedding = self.embedder.embed(title)
-        logger.info(f"Conversation title generated")
+        logger.info("Conversation title generated")
         return title, title_embedding
