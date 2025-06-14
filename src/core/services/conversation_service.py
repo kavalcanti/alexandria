@@ -22,6 +22,23 @@ from src.core.memory.llm_db_cnvs import ConversationsController
 logger = get_module_logger(__name__) 
 
 class ConversationService:
+    """
+    Initialize the conversation service with injected dependencies.
+
+    This constructor follows dependency injection principles, receiving
+    all required components as parameters rather than creating them internally.
+    This makes the service more testable and follows the Single Responsibility Principle.
+
+    Args:
+        conversation_id: ID of the conversation this service manages (None for new conversation)
+        context_window: Manager for handling conversation context and history
+        llm_generator: Manager for LLM interactions and response generation
+        messages_controller: Controller for message database operations
+        conversations_controller: Controller for conversation database operations
+
+    Returns:
+        None
+    """
     def __init__(
         self,
         conversation_id: Optional[int],
@@ -30,23 +47,7 @@ class ConversationService:
         messages_controller: MessagesController,
         conversations_controller: ConversationsController
     ) -> None:
-        """
-        Initialize the conversation service with injected dependencies.
 
-        This constructor follows dependency injection principles, receiving
-        all required components as parameters rather than creating them internally.
-        This makes the service more testable and follows the Single Responsibility Principle.
-
-        Args:
-            conversation_id: ID of the conversation this service manages (None for new conversation)
-            context_window: Manager for handling conversation context and history
-            llm_generator: Manager for LLM interactions and response generation
-            messages_controller: Controller for message database operations
-            conversations_controller: Controller for conversation database operations
-
-        Returns:
-            None
-        """
         self.conversations_controller = conversations_controller
         self.messages_controller = messages_controller
         self.llm_generator = llm_generator
