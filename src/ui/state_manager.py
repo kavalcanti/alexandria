@@ -78,7 +78,7 @@ class StateManager:
             'user': 'You',
             'assistant': 'LLM',
             'system': 'System',
-            'assistant-reasoning': 'Thoughts',
+            'assistant-reasoning': 'Reasoning',
             'retrieval-info': 'Knowledge Base'
         }
         
@@ -133,7 +133,7 @@ class StateManager:
             formatted_msg = self._format_message('assistant-reasoning', message)
             thinking_text.extend(formatted_msg)
         self.reasoning_control.text = thinking_text
-        logger.info(f"Right pane messages: {thinking_text}")
+        # logger.info(f"Right pane messages: {thinking_text}")
         
     def append_user_message(self, message: str) -> None:
         """
@@ -154,7 +154,7 @@ class StateManager:
         # Add to context window for standard generation
         self.conversation_service.add_conversation_message("user", message)
         
-    def append_assistant_message(self, message: str, thinking: Optional[str] = None, retrieval_info: Optional[SearchResult] = None) -> None:
+    def append_assistant_message(self, message: str, thinking: Optional[str] = True, retrieval_info: Optional[SearchResult] = None) -> None:
         """
         Append an assistant message to UI and context window.
         
@@ -182,7 +182,7 @@ class StateManager:
             logger.debug(f"Appending assistant reasoning message: {thinking}")
 
         # Handle retrieval information in the right pane
-        if retrieval_info and retrieval_info.total_matches > 0:
+        if retrieval_info and retrieval_info.total_matches >= 0:
             retrieval_text = self._format_retrieval_info(retrieval_info)
             formatted_retrieval = self._format_message('retrieval-info', retrieval_text)
             

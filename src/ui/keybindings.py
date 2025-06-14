@@ -14,6 +14,7 @@ from prompt_toolkit.layout import ScrollablePane
 from prompt_toolkit.layout.containers import Window
 from prompt_toolkit.application import Application
 from src.logger import get_module_logger
+from src.core.retrieval.models import SearchResult
 
 logger = get_module_logger(__name__)
 
@@ -160,7 +161,7 @@ def create_keybindings(
         """
         user_input = msg_buffer.text
 
-        if user_input.strip(): 
+        if user_input.strip():
             app = application if application else get_app()
             app.layout.focus(chat_formatted_text)
             msg_buffer.text = "AI is busy."
@@ -171,11 +172,15 @@ def create_keybindings(
 
             logger.info("Using standard (RAG-less) response generation")
             # Always use standard response generation for Ctrl+Space
-            ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(conversation_service.generate_chat_response)
+            ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(
+                conversation_service.generate_chat_response,
+                rag_enabled=False,
+                max_tokens=8096
+                )
+            # Set standard retrieval info for non-RAG generation
             state_manager.append_assistant_message(ai_answer, ai_thinking)
-            
+
             app.invalidate()
-            
             msg_buffer.text = ""
             app.layout.focus(msg_window)
 
@@ -211,7 +216,7 @@ def create_keybindings(
             logger.info("Using RAG-enabled response generation")
             # Generate RAG response using the existing method with rag_enabled=True
             ai_answer, ai_thinking, retrieval_info = await asyncio.to_thread(
-                conversation_service.generate_chat_response, True, True, 8096
+                conversation_service.generate_chat_response, True, 8096
                 )
             
             # Handle retrieval information
@@ -225,7 +230,8 @@ def create_keybindings(
                 if total_matches > 0:
                     state_manager.append_assistant_message(ai_answer, ai_thinking, retrieval_info=retrieval_info)
                 else:
-                    state_manager.append_assistant_message(ai_answer, ai_thinking)
+                    retrieval_info = {"total_matches": 0, "message": "No information found"}
+                    state_manager.append_assistant_message(ai_answer, ai_thinking, retrieval_info=retrieval_info)
             else:
                 state_manager.append_assistant_message(ai_answer, ai_thinking)
             
@@ -235,7 +241,7 @@ def create_keybindings(
                     total_matches = retrieval_info.total_matches
                 else:
                     total_matches = retrieval_info.get('total_matches', 0) if isinstance(retrieval_info, dict) else 0
-                logger.info(f"RAG retrieved {total_matches} documents")
+                logger.info("RAG retrieved %d documents", total_matches)
             else:
                 logger.info("No documents retrieved for RAG response")
 
@@ -257,7 +263,7 @@ def create_keybindings(
         """
         saved_path = state_manager.save_current_output()
         if saved_path:
-            logger.info(f"Output saved to: {saved_path}")
+            logger.info("Output saved to: %s", saved_path)
         else:
             msg_buffer.text = "No LLM output to save"
         event.app.invalidate()

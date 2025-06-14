@@ -123,7 +123,7 @@ def create_layout_components() -> Tuple[HSplit, Buffer, FormattedTextControl, Fo
         ("class:shortcut", "Ctrl+↑/↓"),
         ("class:bold", ": Chat | "),
         ("class:shortcut", "Shift+↑/↓"),
-        ("class:bold", ": Thoughts"),
+        ("class:bold", ": Reasoning"),
     ]
 
     # Chat side composite
